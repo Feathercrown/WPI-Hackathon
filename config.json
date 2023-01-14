@@ -1,0 +1,5 @@
+{
+    "expressPort": 3000,
+    "websocketPort": 8080,
+    "WSClientTimeout": 30000
+}

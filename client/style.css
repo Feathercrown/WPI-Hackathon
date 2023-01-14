@@ -1,0 +1,47 @@
+html, body {
+    margin: 0px;
+    padding: 0px;
+    height: 100%;
+    width: 100%;
+}
+
+#main-container {
+    display: flex;
+    flex-flow: row nowrap;
+    overflow: hidden;
+}
+
+#right-panel {
+    display: flex;
+    flex-flow: column nowrap;
+    width: 250px;
+    min-width: 250px;
+    overflow: hidden;
+    align-items: stretch;
+    border-left: 2px solid black;
+}
+
+#main-canvas {
+    flex-grow: 1;
+}
+
+#chat-output {
+    flex-grow: 1;
+}
+
+#chat-controls {
+    text-align: right;
+    align-items: flex-start;
+}
+
+#chat-input {
+    display: block;
+    width: calc(100% - 14px);
+    height: 50px;
+    margin: 5px;
+}
+
+#chat-submit {
+    display: block;
+    margin: 5px;
+}
