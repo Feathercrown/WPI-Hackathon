@@ -1,5 +1,7 @@
 window.addEventListener('load', (event) => {
     var canvas = document.getElementById("main-canvas");
+    canvas.width = canvas.getBoundingClientRect().width; //Set internal canvas width/height to match external width/height
+    canvas.height = canvas.getBoundingClientRect().height;
     var ctx = canvas.getContext("2d");
     ctx.fillRect(5,5,10,10);
 

@@ -7,6 +7,7 @@ const express = require('express');
 const path = require('path/posix');
 server.app = express();
 const WS_Client = require('./WS_Client.js').WS_Client;
+const randName = require("random-anonymous-animals");
 
 //Express Server
 server.app.get('/', (req, res, next) => {
@@ -40,8 +41,9 @@ server.app.listen(server.config.expressPort, () => {
 const clients = new Map();
 
 server.wss.on('connection', function connection(ws, req) {
-    var client = new WS_Client(generateUUID(), ws, server); //TODO: Is there a better way to not have the same UUID every time?
-    clients.set(client.uuid, client);
+    var clientUUID = generateUUID();
+    var client = new WS_Client(clientUUID, randName(clientUUID), ws, server);
+    clients.set(client.uuid, client); //TODO: client.uuid or clientUUID?
     console.log("New connection with UUID %s", client.uuid);
 });
 
@@ -56,7 +58,7 @@ server.wss.on('close', function close() {
 server.receive = function (msg, client) {
     console.log('Client %s sent message: %o', client.uuid, msg);
     switch (msg.type) {
-        case "login": //What happens if you try to log in or out while playing a game? Are games tied to clients or users? Users, right?
+        case "login": //What happens if you try to log in or out while playing a game? Are games tied to clients or users?
             //Log in or error
             break;
         case "logout":

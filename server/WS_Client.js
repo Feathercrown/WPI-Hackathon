@@ -1,8 +1,8 @@
 class WS_Client {
-    constructor(uuid, ws, server){
+    constructor(uuid, name, ws, server){
         this.uuid = uuid;
         this.user = {
-          name: `Guest (${this.uuid})`,
+          name: name, //Previously `Guest (${this.uuid})`; now the server determines a random animal name
           guest: true
         };
         this.ws = ws;
