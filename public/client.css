@@ -29,8 +29,14 @@ html, body {
     flex-grow: 1;
 }
 
+#main-canvas {
+    width: 100%;
+    height: 100%;
+}
+
 #chat-output {
     flex-grow: 1;
+    padding: 5px;
 }
 
 #chat-controls {

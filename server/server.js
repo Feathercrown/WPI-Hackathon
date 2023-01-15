@@ -9,15 +9,21 @@ const path = require('path/posix');
 server.app = express();
 const WS_Client = require('./WS_Client.js').WS_Client;
 const randName = require("random-anonymous-animals");
-const Game = require('./Game.js').Game;
+const Game = require('../games/Game.js').Game;
 server.clients = new Map();
 server.games = new Map();
+server.gameTypes = new Map();
 
-//TODO: Make a proper game creation service
-for(var i=0; i<9; i++){
+//Load all games specified in the config; TODO: Load every game in the "games" folder
+var gamesToLoad = server.config.permanentGames.filter((el, idx, arr)=>{
+    return arr.slice(idx+1).indexOf(el) == -1; //Only keep one (the last) copy of each game file name
+});
+gamesToLoad.forEach(gameName=>server.gameTypes.set(gameName, require(`../games/${gameName}.js`))); //This is unholy
+server.config.permanentGames.forEach((gameName,i)=>{
     var gameUUID = generateUUID();
-    server.games.set(gameUUID, new Game(gameUUID, "Elemental Chess #"+(i+1), [], server));
-}
+    server.games.set(gameUUID, new (server.gameTypes.get(gameName))(gameUUID, "Elemental Chess #"+(i+1), [], server)); //This is unholier
+});
+//TODO: Create new games as they're needed
 
 //Express Server
 server.app.get('/', (req, res, next) => {
@@ -44,11 +50,11 @@ server.app.use(express.static('public'));
 //REST API
 server.app.use(bodyParser.urlencoded({ extended: true }));
 server.app.get('/api/games', (req, res) => {
-    res.send(Array.from(server.games).map(game=>{
+    res.send(Array.from(server.games.values()).map(game=>{
         var gameInfo = { //Don't send the entire server object over as part of each game
-            uuid: game[1].uuid, //each "game" is a [uuid,Game] pair
-            name: game[1].name,
-            players: game[1].players //TODO: clients or users?
+            uuid: game.uuid, //each "game" is a [uuid,Game] pair
+            name: game.name,
+            players: game.players.map(client=>client.uuid) //TODO: clients or users?
         }
         return gameInfo;
     }));
@@ -95,8 +101,28 @@ server.receive = function (msg, client) {
                 });
             });
             break;
+        case "gameJoin":
+            var game = server.games.get(msg.gameUUID);
+            if(!game){
+                console.log("Client %s failed to join game %s: Game does not exist", client.uuid, msg.gameUUID);
+                return;
+            }
+            if(game.players.length >= game.maxPlayers){
+                //TODO: Notify client and return them to the homepage, or let them watch/spectate (add watch/spectate button to homepage game list?)
+                console.log("Client %s failed to join game %s: Game already full", client.uuid, msg.gameUUID); //TODO: game.uuid instead of msg.gameUUID?
+            } else {
+                game.players.push(client);
+                client.curGame = game;
+                console.log("Client %s joined game %s", client.uuid, msg.gameUUID);
+                if(game.players.length == game.maxPlayers){ //TODO: Better ways to start a game? Ready system? Eg. player list w/ ready display, checkbox by submit button, gameReady and gameUnready, etc.?
+                    game.start(); //TODO: Setup/start/etc. sequence?
+                    console.log("Game %s started!", msg.gameUUID);
+                }
+            }
+            break;
         case "gameDecision":
-            //TODO
+            client.curGame.process(msg.decision);
+            //TODO: Do some processing here, or just let the game handle everything? Probably the second-- that provides the most modularity and the least coupling.
             break;
         case "":
             console.error("Error: Client %s sent message with no type", client.uuid);

@@ -7,6 +7,7 @@ class WS_Client {
         };
         this.ws = ws;
         this.server = server;
+        this.curGame = null;
 
         //Heartbeat to ensure client stays connected
         this.alive = true;

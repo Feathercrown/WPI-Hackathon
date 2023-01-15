@@ -1,7 +1,7 @@
 window.addEventListener('load', (event) => {
     var canvas = document.getElementById("main-canvas");
     canvas.width = canvas.getBoundingClientRect().width; //Set internal canvas width/height to match external width/height
-    canvas.height = canvas.getBoundingClientRect().height;
+    canvas.height = canvas.getBoundingClientRect().height; //EDIT: No longer do this; ensure square external canvas dimensions
     var ctx = canvas.getContext("2d");
     ctx.fillRect(5,5,10,10);
 
@@ -10,6 +10,10 @@ window.addEventListener('load', (event) => {
         //Socket opened
         console.log("Connection established");
         //socket.send('{"type":"connectionEstablished"}');
+        socket.send(JSON.stringify({
+            type: "gameJoin",
+            gameUUID: new URLSearchParams(window.location.search).get('game')
+        }));
     };
     socket.onmessage = function(msg){
         //Message recieved
