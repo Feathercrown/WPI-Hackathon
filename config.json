@@ -3,14 +3,14 @@
     "websocketPort": 8080,
     "WSClientTimeout": 30000,
     "permanentGames": [
-        "ElementalChess",
-        "ElementalChess",
-        "ElementalChess",
-        "ElementalChess",
-        "ElementalChess",
-        "ElementalChess",
-        "ElementalChess",
-        "ElementalChess",
-        "ElementalChess"
+        "Chess",
+        "Chess",
+        "Chess",
+        "Chess",
+        "Chess",
+        "Chess",
+        "Chess",
+        "Chess",
+        "Chess"
     ]
 }

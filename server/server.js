@@ -92,22 +92,25 @@ server.receive = function (msg, client) {
         case "logout":
             //Log out
             break;
-        case "chat":
-            server.clients.forEach((targetClient) => {
-                targetClient.send({
-                    type: "chat",
-                    sender: client.user.name,
-                    content: msg.content
+        case "chat": //Local to your current game
+            if(!client.curGame){
+                console.log("Client %s failed to chat: Not in a game", client.uuid);
+            } else {
+                client.curGame.players.forEach((targetClient) => {
+                    targetClient.send({
+                        type: "chat",
+                        sender: client.user.name,
+                        content: msg.content
+                    });
                 });
-            });
+            }
             break;
         case "gameJoin":
             var game = server.games.get(msg.gameUUID);
             if(!game){
+                //TODO: Notify client here too, as below
                 console.log("Client %s failed to join game %s: Game does not exist", client.uuid, msg.gameUUID);
-                return;
-            }
-            if(game.players.length >= game.maxPlayers){
+            } else if(game.players.length >= game.maxPlayers){
                 //TODO: Notify client and return them to the homepage, or let them watch/spectate (add watch/spectate button to homepage game list?)
                 console.log("Client %s failed to join game %s: Game already full", client.uuid, msg.gameUUID); //TODO: game.uuid instead of msg.gameUUID?
             } else {
@@ -121,7 +124,7 @@ server.receive = function (msg, client) {
             }
             break;
         case "gameDecision":
-            client.curGame.process(msg.decision);
+            client.curGame.process(client, msg.decision);
             //TODO: Do some processing here, or just let the game handle everything? Probably the second-- that provides the most modularity and the least coupling.
             break;
         case "":
