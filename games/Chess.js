@@ -36,12 +36,12 @@ class Chess extends Game {
                     board[i][4].piece = new King("white");
                 break;
                 case 1:
-                    for(var j=0; j<7; j++){
+                    for(var j=0; j<8; j++){
                         board[i][j].piece = new Pawn("white");
                     }
                 break;
                 case 6:
-                    for(var j=0; j<7; j++){
+                    for(var j=0; j<8; j++){
                         board[i][j].piece = new Pawn("black");
                     }
                 break;
@@ -135,7 +135,7 @@ class Chess extends Game {
         this.turn = +(!this.turn);
         //Reset pawn doublestep flag for all pawns of current player's color
         this.board.forEach((row,i)=>row.forEach((square,j)=>{
-            if(square.piece.color == (this.turn==0?"white":"black") && square.piece instanceof Pawn && square.piece.doubleStepped){
+            if(square.piece && square.piece.color == (this.turn==0?"white":"black") && square.piece instanceof Pawn && square.piece.doubleStepped){
                 square.piece.doubleStepped = false;
             }
         }));
@@ -144,11 +144,24 @@ class Chess extends Game {
 
     //Notify players of the current gamestate and their new options
     updatePlayers(){
+        var tileWidth = 60; //In pixels. TODO: A (SHOULDN'T EVEN BE ON THE FRONTEND) (MAYBE SCALE IT ON THE FRONTEND?)
+        var sprites = [];
+        this.state.board.forEach((row,i)=>row.forEach((square,j)=>{
+            if(square.piece){
+                sprites.push({
+                    src: square.piece.src,
+                    x: j * tileWidth,
+                    y: i * tileWidth,
+                    width: tileWidth,
+                    height: tileWidth
+                });
+            }
+        }));
         this.players.forEach((targetClient) => {
             targetClient.send({ //Can't send the entire gamestate-- only a snapshot. Need to determine how to do this generally, probably-- perhaps send images and positions to the client?? With shortcut actions they can take on those images?
                 type: "gameStateUpdate",
                 newState: {
-                    test:"received"
+                    sprites: sprites
                 }
             });
         });
@@ -166,6 +179,7 @@ class Piece {
         this.color = color || "uncolored"; //Not recommended to be left unset
         this.game = game || null; //Will often be set later; definitely not recommended to be left unset either, though!
         if(game){this.board = game.state.board;} //For easy access //TODO: Just pass game.state in and use that for everything?
+        this.src = "";
     }
 
     get captured(){
@@ -232,6 +246,7 @@ class Pawn extends Piece {
         super(color);
         this.forward = color=="white"?1:-1;
         this.doubleStepped = false;
+        this.src = "/game-pieces/Chess/pawn_"+this.color+".png";
     }
 
     getValidActions(){
@@ -343,6 +358,7 @@ class Rook extends LinearMover {
             [0,1],
             [0,-1]
         ];
+        this.src = "/game-pieces/Chess/rook_"+this.color+".png";
     }
 
     moveTo(x,y){
@@ -362,6 +378,7 @@ class Bishop extends LinearMover {
             [-1,1],
             [-1,-1]
         ];
+        this.src = "/game-pieces/Chess/bishop_"+this.color+".png";
     }
 }
 
@@ -378,6 +395,7 @@ class Queen extends LinearMover {
             [-1,1],
             [-1,-1]
         ];
+        this.src = "/game-pieces/Chess/queen_"+this.color+".png";
     }
 }
 
@@ -425,6 +443,7 @@ class Knight extends RelativeMover {
             [-1,2],
             [-1,-2]
         ];
+        this.src = "/game-pieces/Chess/knight_"+this.color+".png";
     }
 }
 
@@ -442,6 +461,7 @@ class King extends Piece { //Does not extend RelativeMover because the only Rela
             [-1,1],
             [-1,-1]
         ];
+        this.src = "/game-pieces/Chess/king_"+this.color+".png";
     }
 
     getValidActions(){ //Similar to the RelativeMover; wish I could super() method calls so I could just extend this instead of repeating it here

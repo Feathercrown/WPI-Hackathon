@@ -1,3 +1,4 @@
+var sprites = [];
 window.addEventListener('load', (event) => {
     var canvas = document.getElementById("main-canvas");
     canvas.width = canvas.getBoundingClientRect().width; //Set internal canvas width/height to match external width/height
@@ -44,6 +45,20 @@ window.addEventListener('load', (event) => {
                 var chatMessage = document.createElement('div');
                 chatMessage.appendChild(document.createTextNode(msg.sender+": "+msg.content)); //TODO: This is a major security flaw, you can totally just send a script tag and it'll get sent to every other user and run on their clients lmao
                 document.getElementById('chat-output').appendChild(chatMessage);
+                break;
+            case 'gameStateUpdate':
+                sprites = msg.newState.sprites;
+                sprites.forEach(sprite=>{ //TODO: Interval
+                    var drawing = new Image();
+                    console.log(sprite.src);
+                    drawing.src = sprite.src;
+                    drawing.onload = function() {
+                        ctx.drawImage(drawing, sprite.x, sprite.y, sprite.width, sprite.height);
+                    };
+                });
+                break;
+            case 'decisionList':
+
                 break;
             default:
                 break;
