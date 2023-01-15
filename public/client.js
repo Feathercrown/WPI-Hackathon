@@ -1,10 +1,13 @@
-var sprites = [];
 window.addEventListener('load', (event) => {
     var canvas = document.getElementById("main-canvas");
     canvas.width = canvas.getBoundingClientRect().width; //Set internal canvas width/height to match external width/height
     canvas.height = canvas.getBoundingClientRect().height; //EDIT: No longer do this; ensure square external canvas dimensions
     var ctx = canvas.getContext("2d");
     ctx.fillRect(5,5,10,10);
+    var sprites = [];
+    var decisions = [];
+    var selectedPiece;
+    var tileWidth = 60;
 
     var socket = new WebSocket('ws://localhost:8080');
     socket.onopen = function(){
@@ -48,17 +51,13 @@ window.addEventListener('load', (event) => {
                 break;
             case 'gameStateUpdate':
                 sprites = msg.newState.sprites;
-                sprites.forEach(sprite=>{ //TODO: Interval
-                    var drawing = new Image();
-                    console.log(sprite.src);
-                    drawing.src = sprite.src;
-                    drawing.onload = function() {
-                        ctx.drawImage(drawing, sprite.x, sprite.y, sprite.width, sprite.height);
-                    };
+                sprites.forEach(sprite=>{
+                    sprite.image = new Image();
+                    sprite.image.src = sprite.src;
                 });
                 break;
             case 'decisionList':
-
+                decisions = msg.list;
                 break;
             default:
                 break;
@@ -73,4 +72,52 @@ window.addEventListener('load', (event) => {
             content: message //TODO: Currently, sending chat messages with emoji crashes/closes the Websocket :(
         });
     };
+
+    console.log("Drawing interval set");
+    var drawInterval = setInterval(()=>{
+        //console.log("Drawing interval run");
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        console.log(decisions);
+        if(selectedPiece){
+            var matches = decisions.filter(decision=>{
+                return decision.piece[0] == selectedPiece.x && decision.piece[1] == selectedPiece.y;
+            });
+            matches.forEach(match=>{
+                //console.log(match);
+                if(match.type=="move" || match.type=="doubleStep"){
+                    ctx.fillStyle = "#FFFF00";
+                    ctx.fillRect(match.args[0][0]*tileWidth, 7*tileWidth - match.args[0][1]*tileWidth, tileWidth, tileWidth);
+                } else if(match.type=="capture" || match.type=="enPassent"){
+                    ctx.fillStyle = "#FF0000";
+                    ctx.fillRect(match.args[0][0]*tileWidth, 7*tileWidth - match.args[0][1]*tileWidth, tileWidth, tileWidth);
+                }
+            });
+            console.log(selectedPiece);
+        }
+        sprites.forEach(sprite=>{
+            ctx.drawImage(sprite.image, sprite.x, sprite.y, sprite.width, sprite.height);
+        });
+    }, 200); //5 FPS Baby! WOOO thrilling gameplay
+
+    canvas.addEventListener('click', (evt)=>{
+        var rect = canvas.getBoundingClientRect();
+        var pos = {
+            x: Math.floor((evt.clientX - rect.left)/tileWidth),
+            y: 7 - Math.floor((evt.clientY - rect.top)/tileWidth)
+        };
+        if(selectedPiece){
+            var matches = decisions.filter(decision=>{
+                return decision.piece[0] == selectedPiece.x && decision.piece[1] == selectedPiece.y
+                && decision.args[0][0] == pos.x && decision.args[0][1] == pos.y;
+            });
+            console.log(matches);
+            if(matches.length == 1){
+                send({
+                    type: "gameDecision",
+                    decision: matches[0]
+                });
+            }
+        }
+        selectedPiece = pos;
+    });
 });

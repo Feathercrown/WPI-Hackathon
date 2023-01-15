@@ -10,7 +10,7 @@ class Chess extends Game {
     setup(){
         this.state = {
             board: [],
-            turn: 0, //players[this.turn] to access the current player
+            turn: 0, //players[this.state.turn] to access the current player
             captured: []
         };
         var board = this.state.board; //For shorthand
@@ -60,7 +60,7 @@ class Chess extends Game {
                 break;
             }
         }
-        this.state.board.forEach(row=>row.forEach(square=>{if(square.piece){square.piece.game = this;}})); //Allow each piece to access the game that it's being used in
+        this.state.board.forEach(row=>row.forEach(square=>{if(square.piece){square.piece.game = this; square.piece.board = this.state.board;}})); //Allow each piece to access the game that it's being used in
     }
 
     start(){
@@ -72,7 +72,7 @@ class Chess extends Game {
     process(client, decision){
         if(!this.ready){return;} //TODO: Logging/error handling
         if(this.players[this.state.turn] != client){return;}
-        decision.piece = board[decision.piece[1]][decision.piece[0]].piece; //TODO: Improve this quick & dirty fix?
+        decision.piece = this.state.board[decision.piece[1]][decision.piece[0]].piece; //TODO: Improve this quick & dirty fix?
         if(decision.piece.captured){return;} //Just in case lmao
         console.log(decision);
         /*
@@ -95,7 +95,7 @@ class Chess extends Game {
                     if(action.distance == decision.args[0]){
                         return true;
                     }
-                } else if(action.square == this.state.board(decision.args[0][1], decision.args[0][0])){
+                } else if(action.square == this.state.board[decision.args[0][1]][decision.args[0][0]]){
                     return true;
                 }
             }
@@ -132,10 +132,10 @@ class Chess extends Game {
                 //TODO: Handle this case
                 break;
         }
-        this.turn = +(!this.turn);
+        this.state.turn = +(!this.state.turn);
         //Reset pawn doublestep flag for all pawns of current player's color
-        this.board.forEach((row,i)=>row.forEach((square,j)=>{
-            if(square.piece && square.piece.color == (this.turn==0?"white":"black") && square.piece instanceof Pawn && square.piece.doubleStepped){
+        this.state.board.forEach((row,i)=>row.forEach((square,j)=>{
+            if(square.piece && square.piece.color == (this.state.turn==0?"white":"black") && square.piece instanceof Pawn && square.piece.doubleStepped){
                 square.piece.doubleStepped = false;
             }
         }));
@@ -151,7 +151,7 @@ class Chess extends Game {
                 sprites.push({
                     src: square.piece.src,
                     x: j * tileWidth,
-                    y: i * tileWidth,
+                    y: tileWidth*7 - i * tileWidth,
                     width: tileWidth,
                     height: tileWidth
                 });
@@ -165,7 +165,27 @@ class Chess extends Game {
                 }
             });
         });
+        
+        //Gather and Translate Decisions
+        var decisions = [];
+        this.state.board.forEach((row,i)=>row.forEach((square,j)=>{
+            if(square.piece && square.piece.color == (this.state.turn==0?"white":"black")){
+                var actions = square.piece.getValidActions();
+                var newDecisions = actions.map(action=>{
+                    return {
+                        piece: [j,i],
+                        type: action.type,
+                        args: [[action.square.x,action.square.y]]
+                    };
+                })
+                decisions = decisions.concat(newDecisions);
+            }
+        }));
         this.players[this.state.turn].send({
+            type: "decisionList",
+            list: decisions
+        });
+        this.players[+(!this.state.turn)].send({
             type: "decisionList",
             list: []
         });
@@ -178,19 +198,21 @@ class Piece {
     constructor(color, game){
         this.color = color || "uncolored"; //Not recommended to be left unset
         this.game = game || null; //Will often be set later; definitely not recommended to be left unset either, though!
-        if(game){this.board = game.state.board;} //For easy access //TODO: Just pass game.state in and use that for everything?
+        if(game){this.board = game.state.board;} //For easy access //TODO: Just pass game.state in and use that for everything? /?TODO: Auto-set this somehow?
         this.src = "";
     }
 
     get captured(){
+        if(!this.game){return null;} //TODO: Error, possibly? Or nah?
         return this.game.state.captured.indexOf(this) != -1;
     }
 
     get position(){ //Not really ideal but oh well out of time (TODO?)
+        if(!this.game){return null;} //TODO: Error, possibly? Or nah?
         if(this.captured){
             return null;
         } else {
-            matches = [];
+            var matches = [];
             this.board.forEach((row,i)=>row.forEach((square,j)=>{
                 if(square.piece == this){
                     matches.push({x:j,y:i}); //Careful! Must access squares with board[y][x] (TODO: Change to row/col terminology?)
@@ -211,12 +233,14 @@ class Piece {
     }
 
     capture(){
-        this.game.state.captured.push(this);
         this.getRel(0,0).piece = null;
+        this.game.state.captured.push(this);
     }
 
     moveTo(x,y){
-        this.board[y][x].piece.capture();
+        if(this.board[y][x].piece){
+            this.board[y][x].piece.capture();
+        }
         this.getRel(0,0).piece = null;
         this.board[y][x].piece = this;
     }
@@ -236,8 +260,8 @@ class Piece {
         }
     }
 
-    getRel(){ //Shorthand
-        return getRelativeBoardPosition();
+    getRel(x,y){ //Shorthand
+        return this.getRelativeBoardPosition(x,y);
     }
 }
 
@@ -256,6 +280,8 @@ class Pawn extends Piece {
         var aheadLeft = this.getRel(-1, this.forward);
         var aheadRight = this.getRel(1, this.forward);
         var doubleStep = this.getRel(0, this.forward*2);
+        var left = this.getRel(-1,0);
+        var right = this.getRel(1,0);
         if(ahead && ahead.piece == null ){
             actions.push({
                 type: "move",
@@ -269,13 +295,13 @@ class Pawn extends Piece {
             }
         }
         if(aheadLeft){
-            if(aheadLeft.piece != null){
+            if(aheadLeft.piece != null && aheadLeft.piece.color != this.color){
                 actions.push({
                     type: "capture",
                     square: aheadLeft
                 });
             }
-            if(this.getRel(-1,0).piece != null && this.getRel(-1,0).piece.doubleStepped){ //TODO: Change to left and right instead of using getRel here; also, ensure no piece is in the way (can't normally happen)
+            if(left.piece != null && left.piece.doubleStepped && left.piece.color != this.color){ //TODO: Change to left and right instead of using getRel here; also, ensure no piece is in the way (can't normally happen)
                 actions.push({
                     type: "enPassent",
                     square: aheadLeft
@@ -283,13 +309,13 @@ class Pawn extends Piece {
             }
         }
         if(aheadRight){
-            if(aheadRight.piece != null){
+            if(aheadRight.piece != null && aheadRight.piece.color != this.color){
                 actions.push({
                     type: "capture",
                     square: aheadRight
                 });
             }
-            if(this.getRel(1,0).piece != null && this.getRel(1,0).piece.doubleStepped){
+            if(right.piece != null && right.piece.doubleStepped && right.piece.color != this.color){
                 actions.push({
                     type: "enPassent",
                     square: aheadRight
@@ -327,10 +353,12 @@ class LinearMover extends Piece {
                 if(curSquare == null){
                     break;
                 } else if(curSquare.piece != null){
-                    actions.push({
-                        type: "capture",
-                        square: curSquare
-                    });
+                    if(curSquare.piece.color != this.color){
+                        actions.push({
+                            type: "capture",
+                            square: curSquare
+                        });
+                    }
                     break;
                 } else if(curSquare.piece == null){
                     actions.push({
@@ -362,7 +390,9 @@ class Rook extends LinearMover {
     }
 
     moveTo(x,y){
-        this.board[y][x].piece.capture();
+        if(this.board[y][x].piece){
+            this.board[y][x].piece.capture();
+        }
         this.getRel(0,0).piece = null;
         this.board[y][x].piece = this;
         this.moved = true; //Track movement for castling
@@ -412,7 +442,7 @@ class RelativeMover extends Piece {
             var curSquare = this.getRel(delta[0], delta[1]);
             if(curSquare == null){
                 //Do nothing
-            } else if(curSquare.piece != null){
+            } else if(curSquare.piece != null && curSquare.piece.color != this.color){
                 actions.push({
                     type: "capture",
                     square: curSquare
@@ -471,7 +501,7 @@ class King extends Piece { //Does not extend RelativeMover because the only Rela
             var curSquare = this.getRel(delta[0], delta[1]);
             if(curSquare == null){
                 //Do nothing
-            } else if(curSquare.piece != null){
+            } else if(curSquare.piece != null && curSquare.piece.color != this.color){
                 actions.push({
                     type: "capture",
                     square: curSquare
@@ -492,7 +522,9 @@ class King extends Piece { //Does not extend RelativeMover because the only Rela
     }
 
     moveTo(x,y){
-        this.board[y][x].piece.capture();
+        if(this.board[y][x].piece){
+            this.board[y][x].piece.capture();
+        }
         this.getRel(0,0).piece = null;
         this.board[y][x].piece = this;
         this.moved = true; //Track movement for castling
