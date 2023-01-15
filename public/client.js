@@ -8,7 +8,8 @@ window.addEventListener('load', (event) => {
     var socket = new WebSocket('ws://localhost:8080');
     socket.onopen = function(){
         //Socket opened
-        socket.send('{"data":"test"}');
+        console.log("Connection established");
+        //socket.send('{"type":"connectionEstablished"}');
     };
     socket.onmessage = function(msg){
         //Message recieved
