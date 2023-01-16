@@ -1,4 +1,4 @@
-const Game = require('./Game.js');
+const Game = require('../Common/Game.js');
 
 class Chess extends Game {
     constructor(uuid, name, players, server){

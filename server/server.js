@@ -1,5 +1,5 @@
 const server = {};
-server.config = require('../config.json');
+server.config = require('./config.json');
 const generateUUID = require('uuid').v4;
 const ws = require('ws');
 server.wss = new ws.WebSocketServer({ port: server.config.websocketPort });
@@ -7,12 +7,14 @@ const express = require('express');
 var bodyParser = require('body-parser');
 const path = require('path/posix');
 server.app = express();
-const WS_Client = require('./WS_Client.js').WS_Client;
+const WS_Client = require('../clients/WS_Client/WS_Client.js').WS_Client;
 const randName = require("random-anonymous-animals");
-const Game = require('../games/Game.js').Game;
+const Game = require('../games/Common/Game.js').Game;
 server.clients = new Map();
 server.games = new Map();
 server.gameTypes = new Map();
+
+var allGames = [];
 
 //Load all games specified in the config; TODO: Load every game in the "games" folder
 var gamesToLoad = server.config.permanentGames.filter((el, idx, arr)=>{
