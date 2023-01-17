@@ -1,31 +1,59 @@
-const server = {};
+//Imports and Configuration
+const server = {
+    clients: new Map(),
+    games: new Map(),
+    gameTypes: new Map()
+};
 server.config = require('./config.json');
 const generateUUID = require('uuid').v4;
+const randName = require("random-anonymous-animals");
+
+//Websockets
 const ws = require('ws');
 server.wss = new ws.WebSocketServer({ port: server.config.websocketPort });
+const WS_Client = require('../clients/WS_Client/WS_Client.js').WS_Client;
+
+//Express
 const express = require('express');
 var bodyParser = require('body-parser');
+const fs = require('fs');
 const path = require('path/posix');
 server.app = express();
-const WS_Client = require('../clients/WS_Client/WS_Client.js').WS_Client;
-const randName = require("random-anonymous-animals");
-const Game = require('../games/Common/Game.js').Game;
-server.clients = new Map();
-server.games = new Map();
-server.gameTypes = new Map();
 
+////////////
+
+//Load all games
 var allGames = [];
-
-//Load all games specified in the config; TODO: Load every game in the "games" folder
-var gamesToLoad = server.config.permanentGames.filter((el, idx, arr)=>{
-    return arr.slice(idx+1).indexOf(el) == -1; //Only keep one (the last) copy of each game file name
+fs.readdir(path.join(__dirname, '../games'), { withFileTypes: true }, (error, files) => {
+    if(error){console.error(error);}
+    files.forEach(file => {
+        if(file.isDirectory()){
+            //Load the game into memory
+            var gameName = file.name;
+            try { //try-catch the game file loading process since fs.exists() isn't recommended. Yeah, a config file seems like the right move... although that wouldn't stop me from needing to use this try/catch anyways.
+                server.gameTypes.set(gameName, require(`../games/${gameName}/${gameName}.js`)); //This is unholy, but only a little. TODO: Have a manifest or config of some sort to determine which file(s) to load the game(s) (+variants?) from?
+                //TODO: More? With the config or with auto-starting one game it would make sense...
+                //TODO: Actually, auto-start as many games as the unusedGameBuffer config setting says to keep open! Could also check permanent games in here, if those continue to be a thing
+            } catch(err) {
+                var translations = {
+                    'MODULE_NOT_FOUND': 'No game file found', //TODO: This error will always be thrown for Common... maybe having Common be a game folder isn't a great idea? Or just name the Game generic file Common and allow it to be loaded and used for some reason?
+                };
+                console.error(`Error: Could not load game ${gameName}: ${translations[err.code] || `Unrecognized reason (${err.code})`}`);
+                if(!translations[err.code]){console.error(err);}
+            }
+        }
+    });
+    console.log(server.gameTypes);
 });
+/*
 gamesToLoad.forEach(gameName=>server.gameTypes.set(gameName, require(`../games/${gameName}.js`))); //This is unholy
 server.config.permanentGames.forEach((gameName,i)=>{
     var gameUUID = generateUUID();
     server.games.set(gameUUID, new (server.gameTypes.get(gameName))(gameUUID, "Elemental Chess #"+(i+1), [], server)); //This is unholier
 });
+*/
 //TODO: Create new games as they're needed
+
 
 //Express Server
 server.app.get('/', (req, res, next) => {
@@ -39,7 +67,7 @@ server.app.get('/', (req, res, next) => {
     };
     res.sendFile('/index.html', options, function (err) {
         if (err) {
-            console.error('Failed to send homepage');
+            console.error('Error: Failed to send homepage');
             next(err);
         } else {
             console.log(`Sent homepage`);

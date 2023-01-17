@@ -11,3 +11,4 @@ Game lifecycle - ready up, set up, play!
 Game replays and archive?
 Fix chess specifically (later? / in-depth task)
 Server announcements API for the homepage
+Server.log and server.error instead of using console directly, to allow logging etc.? Potentially the server should act on different errors automatically?

@@ -1,16 +1,7 @@
 {
     "expressPort": 3000,
     "websocketPort": 8080,
-    "WSClientTimeout": 30000,
-    "permanentGames": [
-        "Chess",
-        "Chess",
-        "Chess",
-        "Chess",
-        "Chess",
-        "Chess",
-        "Chess",
-        "Chess",
-        "Chess"
-    ]
+    "WSClientTimeout": 30000, //In ms, so 30s
+    "permanentGames": [], /* Unused/Deprecated(?) */
+    "unusedGameBuffer": 1, //How many games will be kept open with entirely empty player slots
 }
