@@ -2,7 +2,7 @@
 Yet another GRID attempt, for the WPI Hackathon this time.
 
 # TODO
-Provide just-in-time game creation
+gameLeave event (on tab close, leave button, and client timeout)
 Game lifecycle - ready up, set up, play!
 Fix chess specifically
 

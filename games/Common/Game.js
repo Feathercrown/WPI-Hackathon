@@ -5,6 +5,10 @@ class Game {
         this.players = players;
         this.server = server;
     }
+
+    get type(){
+        return this.constructor.name;
+    }
 }
 
 module.exports = Game;

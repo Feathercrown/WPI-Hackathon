@@ -2,6 +2,10 @@ window.addEventListener('load', (event) => {
     var canvas = document.getElementById("main-canvas");
     canvas.width = canvas.getBoundingClientRect().width; //Set internal canvas width/height to match external width/height
     canvas.height = canvas.getBoundingClientRect().height; //EDIT: No longer do this; ensure square external canvas dimensions
+    window.addEventListener('resize', ()=>{
+        canvas.width = canvas.getBoundingClientRect().width; //Set internal canvas width/height to match external width/height
+        canvas.height = canvas.getBoundingClientRect().height; //EDIT: No longer do this; ensure square external canvas dimensions
+    });
     var ctx = canvas.getContext("2d");
     ctx.fillRect(5,5,10,10);
     var sprites = [];
