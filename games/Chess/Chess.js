@@ -149,7 +149,7 @@ class Chess extends Game {
         this.state.board.forEach((row,i)=>row.forEach((square,j)=>{
             if(square.piece){
                 sprites.push({
-                    src: square.piece.src,
+                    src: "/games"+square.piece.src, //TODO: Have a more unified or elegant way to send sprites to clients?
                     x: j * tileWidth,
                     y: tileWidth*7 - i * tileWidth,
                     width: tileWidth,
@@ -270,7 +270,7 @@ class Pawn extends Piece {
         super(color);
         this.forward = color=="white"?1:-1;
         this.doubleStepped = false;
-        this.src = "/game-pieces/Chess/pawn_"+this.color+".png";
+        this.src = "/Chess/pieces/pawn_"+this.color+".png";
     }
 
     getValidActions(){
@@ -386,7 +386,7 @@ class Rook extends LinearMover {
             [0,1],
             [0,-1]
         ];
-        this.src = "/game-pieces/Chess/rook_"+this.color+".png";
+        this.src = "/Chess/pieces/rook_"+this.color+".png";
     }
 
     moveTo(x,y){
@@ -408,7 +408,7 @@ class Bishop extends LinearMover {
             [-1,1],
             [-1,-1]
         ];
-        this.src = "/game-pieces/Chess/bishop_"+this.color+".png";
+        this.src = "/Chess/pieces/bishop_"+this.color+".png";
     }
 }
 
@@ -425,7 +425,7 @@ class Queen extends LinearMover {
             [-1,1],
             [-1,-1]
         ];
-        this.src = "/game-pieces/Chess/queen_"+this.color+".png";
+        this.src = "/Chess/pieces/queen_"+this.color+".png";
     }
 }
 
@@ -473,7 +473,7 @@ class Knight extends RelativeMover {
             [-1,2],
             [-1,-2]
         ];
-        this.src = "/game-pieces/Chess/knight_"+this.color+".png";
+        this.src = "/Chess/pieces/knight_"+this.color+".png";
     }
 }
 
@@ -491,7 +491,7 @@ class King extends Piece { //Does not extend RelativeMover because the only Rela
             [-1,1],
             [-1,-1]
         ];
-        this.src = "/game-pieces/Chess/king_"+this.color+".png";
+        this.src = "/Chess/pieces/king_"+this.color+".png";
     }
 
     getValidActions(){ //Similar to the RelativeMover; wish I could super() method calls so I could just extend this instead of repeating it here

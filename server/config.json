@@ -1,7 +1,14 @@
 {
     "expressPort": 3000,
     "websocketPort": 8080,
-    "WSClientTimeout": 30000, //In ms, so 30s
-    "permanentGames": [], /* Unused/Deprecated(?) */
-    "unusedGameBuffer": 1, //How many games will be kept open with entirely empty player slots
+    "WSClientTimeout": 30000,
+    "permanentGames": [],
+    "unusedGameBuffer": 2,
+    "announcements": [
+        {
+            "timestamp": 1673740800,
+            "title": "GoatHacks 2023",
+            "body": "The first, and so far only, update: Elemental Chess was created at GoatHacks 2023! I hope everyone had a great time at the event-- for me, it was a lot of fiddly work to make the website, but I plan to reuse this for a later project, so it was worth it. Overall, I'd say it went well!"
+        }
+    ]
 }

@@ -53,6 +53,7 @@ window.addEventListener('load', (event) => {
                 sprites = msg.newState.sprites;
                 sprites.forEach(sprite=>{
                     sprite.image = new Image();
+                    console.log(sprite.src);
                     sprite.image.src = sprite.src;
                 });
                 break;

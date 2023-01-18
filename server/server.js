@@ -23,42 +23,40 @@ server.app = express();
 ////////////
 
 //Load all games
-var allGames = [];
+server.createGame = function(gameType){
+    var gameUUID = generateUUID();
+    var gameNum = Array.from(this.games.values()).filter(game => game instanceof this.gameTypes.get(gameType)).length + 1;
+    this.games.set(gameUUID, new (this.gameTypes.get(gameType))(gameUUID, `${gameType} #${gameNum}`, [], this));
+}
 fs.readdir(path.join(__dirname, '../games'), { withFileTypes: true }, (error, files) => {
     if(error){console.error(error);}
     files.forEach(file => {
         if(file.isDirectory()){
-            //Load the game into memory
-            var gameName = file.name;
+            //Load the game into memory and start a buffer of instances
+            var gameType = file.name;
             try { //try-catch the game file loading process since fs.exists() isn't recommended. Yeah, a config file seems like the right move... although that wouldn't stop me from needing to use this try/catch anyways.
-                server.gameTypes.set(gameName, require(`../games/${gameName}/${gameName}.js`)); //This is unholy, but only a little. TODO: Have a manifest or config of some sort to determine which file(s) to load the game(s) (+variants?) from?
-                //TODO: More? With the config or with auto-starting one game it would make sense...
-                //TODO: Actually, auto-start as many games as the unusedGameBuffer config setting says to keep open! Could also check permanent games in here, if those continue to be a thing
+                server.gameTypes.set(gameType, require(`../games/${gameType}/${gameType}.js`)); //This is unholy, but only a little. TODO: Have a manifest or config of some sort to determine which file(s) to load the game(s) (+variants?) from?
+                for(var i=0; i<server.config.unusedGameBuffer; i++){ //TODO: Convert createGame to createGames and use that here?
+                    server.createGame(gameType);
+                }
+                //TODO: Permanent games from config?
             } catch(err) {
                 var translations = {
                     'MODULE_NOT_FOUND': 'No game file found', //TODO: This error will always be thrown for Common... maybe having Common be a game folder isn't a great idea? Or just name the Game generic file Common and allow it to be loaded and used for some reason?
                 };
-                console.error(`Error: Could not load game ${gameName}: ${translations[err.code] || `Unrecognized reason (${err.code})`}`);
+                console.error(`Error: Could not load game ${gameType}: ${translations[err.code] || `Unrecognized reason (${err.code})`}`);
                 if(!translations[err.code]){console.error(err);}
             }
         }
     });
-    console.log(server.gameTypes);
 });
-/*
-gamesToLoad.forEach(gameName=>server.gameTypes.set(gameName, require(`../games/${gameName}.js`))); //This is unholy
-server.config.permanentGames.forEach((gameName,i)=>{
-    var gameUUID = generateUUID();
-    server.games.set(gameUUID, new (server.gameTypes.get(gameName))(gameUUID, "Elemental Chess #"+(i+1), [], server)); //This is unholier
-});
-*/
-//TODO: Create new games as they're needed
+
 
 
 //Express Server
 server.app.get('/', (req, res, next) => {
     var options = {
-        root: path.join(__dirname, '../public'),
+        root: path.join(__dirname, '../clients/WS_Client/public'),
         dotfiles: 'deny',
         headers: {
             'x-timestamp': Date.now(),
@@ -75,12 +73,13 @@ server.app.get('/', (req, res, next) => {
     });
 })
 
-server.app.use(express.static('public'));
+server.app.use('/', express.static('clients/WS_Client/public'));
+server.app.use('/games', express.static('games')); //TODO: Pass images directly as blobs? No, keep game folder public, it can have rules PDFs and other useful things in it as well!
 
 //REST API
 server.app.use(bodyParser.urlencoded({ extended: true }));
 server.app.get('/api/games', (req, res) => {
-    res.send(Array.from(server.games.values()).map(game=>{
+    res.send(Array.from(server.games.values()).map(game=>{ //Send in array format to make parsing easier on the frontend, since Maps can't be sent through JSON (afaik)
         var gameInfo = { //Don't send the entire server object over as part of each game
             uuid: game.uuid, //each "game" is a [uuid,Game] pair
             name: game.name,
@@ -88,11 +87,14 @@ server.app.get('/api/games', (req, res) => {
         }
         return gameInfo;
     }));
-}); //Send in array format to make parsing easier on the frontend, since Maps can't be sent through JSON (afaik)
+});
+server.app.get('/api/announcements', (req, res) => {
+    res.send(server.config.announcements); //That Was Easy(TM)
+});
 
 //Start Express Server
 server.app.listen(server.config.expressPort, () => {
-    console.log(`Example app listening at http://localhost:${server.config.expressPort}`);
+    console.log(`Game server listening at http://localhost:${server.config.expressPort}`);
 });
 
 
