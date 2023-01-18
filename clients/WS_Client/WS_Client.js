@@ -13,7 +13,15 @@ class WS_Client {
         this.alive = true;
         this.pingInterval = setInterval(()=>{
             if(!this.alive){ //If last ping not ponged
-                this.ws.terminate();
+                this.ws.terminate(); //Close WS connection
+                this.receive({ //Spoof the gameLeave event
+                    type: 'gameLeave',
+                    gameUUID: this.curGame ? this.curGame.uuid : '' //JUST in case (TODO: Nullish coalescing?)
+                });
+                clearInterval(this.pingInterval);
+                this.server.clients.delete(this.uuid);
+                console.log(`Client ${this.uuid} timed out and was deleted`);
+                //TODO: This should be all, right?
             } else {
                 this.alive = false;
                 this.ws.ping();

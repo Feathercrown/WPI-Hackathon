@@ -50,7 +50,7 @@ window.addEventListener('load', (event) => {
             case 'chat':
                 console.log(msg.content);
                 var chatMessage = document.createElement('div');
-                chatMessage.appendChild(document.createTextNode(msg.sender+": "+msg.content)); //TODO: This is a major security flaw, you can totally just send a script tag and it'll get sent to every other user and run on their clients lmao
+                chatMessage.appendChild(document.createTextNode(msg.sender+": "+msg.content));
                 document.getElementById('chat-output').appendChild(chatMessage);
                 break;
             case 'gameStateUpdate':
@@ -69,7 +69,12 @@ window.addEventListener('load', (event) => {
         }
     }
 
-    document.getElementById('chat-submit').onclick = function sendChatMessage(){
+
+
+    //Assign event handlers
+
+    //Handle chat submission
+    document.getElementById('chat-submit-button').onclick = function sendChatMessage(){
         var message = document.getElementById('chat-input').value;
         document.getElementById('chat-input').value = '';
         send({
@@ -78,6 +83,27 @@ window.addEventListener('load', (event) => {
         });
     };
 
+    //Handle leaving the game and unloading the page
+    function leaveGame(){
+        send({
+            type: "gameLeave",
+            gameUUID: new URLSearchParams(window.location.search).get('game') //Clients can only be in one game so this is unnecessary but send it just in case
+        });
+        window.location = "./index.html";
+    }
+    document.getElementById('leave-game-button').onclick = ()=>{
+        if(confirm("Are you sure you want to leave the game?")){
+            leaveGame();
+        }
+    };
+    window.addEventListener('beforeunload', (event)=>{ //TODO: Not working :despair:
+        event.preventDefault();
+        event.returnValue = 'onbeforeunload';
+        return false;
+    });
+    window.addEventListener('pagehide', leaveGame);
+
+    //Draw canvas
     console.log("Drawing interval set");
     var drawInterval = setInterval(()=>{
         //console.log("Drawing interval run");
@@ -104,6 +130,7 @@ window.addEventListener('load', (event) => {
         });
     }, 200); //5 FPS Baby! WOOO thrilling gameplay
 
+    //Handle user input
     canvas.addEventListener('click', (evt)=>{
         var rect = canvas.getBoundingClientRect();
         var pos = {

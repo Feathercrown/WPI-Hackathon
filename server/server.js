@@ -23,13 +23,14 @@ server.app = express();
 ////////////
 
 //Load all games
-server.countGames = function(predicate){ //TODO: Change to getGames and don't auto-use .length?
-    return Array.from(this.games.values()).filter(game => predicate(game)).length;
+server.getGames = function(predicate){ //TODO: getGames or countGames?
+    return Array.from(this.games.values()).filter(game => predicate(game));
 };
 server.createGame = function(gameType){
     var gameUUID = generateUUID();
-    var gameNum = server.countGames(game => game instanceof this.gameTypes.get(gameType)) + 1;
-    this.games.set(gameUUID, new (this.gameTypes.get(gameType))(gameUUID, `${gameType} #${gameNum}`, [], this));
+    var gameNum = server.getGames(game => game instanceof this.gameTypes.get(gameType)).length + 1;
+    //this.games.set(gameUUID, new (this.gameTypes.get(gameType))(gameUUID, `${gameType} #${gameNum}`, [], this)); //TODO: Readd numbering by committing to the naming strategy and having each game have a unique (not universally, just that two can't exist at once) number instead of a game name (and calculate the game name from the game type and number)
+    this.games.set(gameUUID, new (this.gameTypes.get(gameType))(gameUUID, gameType, [], this)); //name=type, players=[], server=this
 };
 fs.readdir(path.join(__dirname, '../games'), { withFileTypes: true }, (error, files) => {
     if(error){console.error(error);}
@@ -156,18 +157,25 @@ server.receive = function (msg, client) {
                     game.start(); //TODO: Setup/start/etc. sequence?
                     console.log("Game %s started!", msg.gameUUID);
                 }
-                if(server.countGames(otherGame => otherGame.type === game.type && otherGame.players.length == 0) < server.config.unusedGameBuffer){ //TODO: Misnomer, otherGame can equal game
+                if(server.getGames(otherGame => otherGame.type === game.type && otherGame.players.length == 0).length < server.config.unusedGameBuffer){ //TODO: Misnomer, otherGame can equal game
                     console.log(`Creating new game of ${game.type} to replace newly occupied game`);
                     server.createGame(game.type);
                 }
             }
             break;
         case "gameLeave":
-            if(game.players.length == 0 && server.countGames(otherGame => otherGame.type === game.type && otherGame.players.length == 0) > server.config.unusedGameBuffer){
-                console.log(`Removing unneeded empty game of ${game.type}`);
-                server.games.delete(game.uuid);
+            var game = server.games.get(msg.gameUUID); //TODO: Do this, or get game uuid from client?
+            client.curGame = null;
+            if(!game){
+                console.log("Client %s failed to leave game %s: Game does not exist", client.uuid, msg.gameUUID);
+            } else {
+                game.players = game.players.filter(player => player != client);
+                if(game.players.length == 0 && server.getGames(otherGame => otherGame.type === game.type && otherGame.players.length == 0).length > server.config.unusedGameBuffer){
+                    console.log(`Removing unneeded empty game of ${game.type}`);
+                    server.games.delete(game.uuid);
+                }
+                //TODO: Archive game; prevent new joins; etc.
             }
-            //TODO: Archive game; prevent new joins; etc.
             break;
         case "gameDecision":
             client.curGame.process(client, msg.decision);
