@@ -12,6 +12,9 @@ window.addEventListener('load', (event) => {
     var decisions = [];
     var selectedPiece;
     var tileWidth = 60;
+    var resources = { //TODO: Download resources on join
+        rules: './games/Chess/BasicChessRules.pdf'
+    };
 
     var socket = new WebSocket('ws://localhost:8080');
     socket.onopen = function(){
@@ -74,13 +77,35 @@ window.addEventListener('load', (event) => {
     //Assign event handlers
 
     //Handle chat submission
-    document.getElementById('chat-submit-button').onclick = function sendChatMessage(){
+    document.getElementById('submit-chat-button').onclick = function sendChatMessage(){
         var message = document.getElementById('chat-input').value;
         document.getElementById('chat-input').value = '';
         send({
             type: "chat",
-            content: message //TODO: Currently, sending chat messages with emoji crashes/closes the Websocket :(
+            content: message
         });
+    };
+
+    /*
+    //Handle name changes
+    document.getElementById('change-name-button').onclick = function changeName(){
+        var name = prompt("Please enter new name:");
+        if(name){
+            send({
+                type: "nameChange",
+                newName: name
+            });
+        }
+    };
+    */
+
+    //Handle rule-viewing requests
+    document.getElementById('view-rules-button').onclick = function showRules(){
+        if(resources.rules){
+            window.open(resources.rules, '_blank');
+        } else {
+            alert("Sorry, no rules document specified.");
+        }
     };
 
     //Handle leaving the game and unloading the page
@@ -108,7 +133,7 @@ window.addEventListener('load', (event) => {
     var drawInterval = setInterval(()=>{
         //console.log("Drawing interval run");
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        console.log(decisions);
+        //console.log(decisions);
         if(selectedPiece){
             var matches = decisions.filter(decision=>{
                 return decision.piece[0] == selectedPiece.x && decision.piece[1] == selectedPiece.y;
@@ -123,7 +148,7 @@ window.addEventListener('load', (event) => {
                     ctx.fillRect(match.args[0][0]*tileWidth, 7*tileWidth - match.args[0][1]*tileWidth, tileWidth, tileWidth);
                 }
             });
-            console.log(selectedPiece);
+            //console.log(selectedPiece);
         }
         sprites.forEach(sprite=>{
             ctx.drawImage(sprite.image, sprite.x, sprite.y, sprite.width, sprite.height);

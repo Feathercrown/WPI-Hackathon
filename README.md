@@ -2,15 +2,10 @@
 Yet another GRID attempt, for the WPI Hackathon this time.
 
 # TODO
-Assorted client buttons:
- - gameLeave event (on tab close, leave button, and client timeout)
- - Change display name
- - View rules for current game
 Create client framework
-
-# Later TODOs
 Fix chess specifically
 Create a text-based client
+Name changing and accounts
 
 # Maybe TODOs
 Server.log and server.error instead of using console directly, to allow logging etc.? Potentially the server should act on different   errors automatically?

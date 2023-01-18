@@ -141,6 +141,12 @@ server.receive = function (msg, client) {
                 });
             }
             break;
+        case 'nameChange': //TODO: Name changes happen outside of games? Guests can't change their names?
+            //TODO: Can logged-in users change their nickname?
+            //client.user.name = msg.newName; //TODO: Disabled for now until I can figure out how this should work
+            //TODO: Prevent changing your name to someone else's or a blank name and notify other users in the game of the change through a chat message
+            //TODO: Mark chat messages from the server specially? Also, prevent people from changing their name to "Server" (and RTL char and stuff! -- prevent in chat messages too?)
+            break;
         case "gameJoin":
             var game = server.games.get(msg.gameUUID);
             if(!game){
@@ -185,7 +191,7 @@ server.receive = function (msg, client) {
             console.error("Error: Client %s sent message with no type", client.uuid);
             break;
         default:
-            console.error("Error: Client %s sent message with unrecognized type", client.uuid);
+            console.error("Error: Client %s sent message with unrecognized type %s", client.uuid, msg.type);
             break;
     }
 };
