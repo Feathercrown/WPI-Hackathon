@@ -1,0 +1,16 @@
+{
+    "clients": {
+        "Extensible_WS_Client": {
+            "enabled": false,
+            "translator": "translators/Extensible_WS_Translator.js"
+        },
+        "Legacy_WS_Client": {
+            "enabled": true,
+            "translator": "translators/Legacy_WS_Translator.js"
+        },
+        "CMD_Client": {
+            "enabled": false,
+            "translator": "translators/CMD_Translator.js"
+        }
+    }
+}

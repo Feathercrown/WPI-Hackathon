@@ -1,4 +1,4 @@
-const Game = require('../Common/Game.js');
+const Game = require('../Common/Game.js'); //TODO: Put client translation code in the Common game code instead of the server itself?? That way, games can control how they work at a bit of a deeper level, but optionally?
 
 class Chess extends Game {
     constructor(uuid, name, players, server){
@@ -8,6 +8,11 @@ class Chess extends Game {
     }
 
     setup(){
+        this.translators = {
+            "Legacy_WS_Client": {
+                translate: this.updatePlayers
+            }
+        };
         this.state = {
             board: [],
             turn: 0, //players[this.state.turn] to access the current player
@@ -52,7 +57,7 @@ class Chess extends Game {
                     board[i][6].piece = new Knight("black");
                     board[i][2].piece = new Bishop("black");
                     board[i][5].piece = new Bishop("black");
-                    board[i][3].piece = new Queen("black"); //Queen on color, board[0][3] is black
+                    board[i][3].piece = new Queen("black"); //Queen on color, board[7][3] is black
                     board[i][4].piece = new King("black");
                 break;
                 default:
@@ -66,7 +71,7 @@ class Chess extends Game {
     start(){
         this.setup(); //For now; could be called from the server instead eventually (TODO?)
         this.ready = true;
-        this.updatePlayers();
+        this.updatePlayers(this, true); //TODO: No change?
     }
 
     process(client, decision){
@@ -103,13 +108,16 @@ class Chess extends Game {
         });
         if(matching.length > 1){
             console.error("Error: More than one matching valid action for this decision!");
+            return false;
         } else if(matching.length <= 0){
             console.error("Error: No matching valid actions for this decision!");
+            return false;
         } else if(matching.length == 1){
             var match = matching[0];
-            this.executeAction(decision.piece, match);
+            return this.executeAction(decision.piece, match);
         } else {
             //TODO: Error?
+            return false;
         }
     }
 
@@ -139,14 +147,14 @@ class Chess extends Game {
                 square.piece.doubleStepped = false;
             }
         }));
-        this.updatePlayers();
+        return true; //TODO: Return the change?
     }
 
     //Notify players of the current gamestate and their new options
-    updatePlayers(){
+    updatePlayers(game, change){
         var tileWidth = 60; //In pixels. TODO: A (SHOULDN'T EVEN BE ON THE FRONTEND) (MAYBE SCALE IT ON THE FRONTEND?)
         var sprites = [];
-        this.state.board.forEach((row,i)=>row.forEach((square,j)=>{
+        game.state.board.forEach((row,i)=>row.forEach((square,j)=>{
             if(square.piece){
                 sprites.push({
                     src: "/games"+square.piece.src, //TODO: Have a more unified or elegant way to send sprites to clients?
@@ -157,7 +165,7 @@ class Chess extends Game {
                 });
             }
         }));
-        this.players.forEach((targetClient) => {
+        game.players.forEach((targetClient) => {
             targetClient.send({ //Can't send the entire gamestate-- only a snapshot. Need to determine how to do this generally, probably-- perhaps send images and positions to the client?? With shortcut actions they can take on those images?
                 type: "gameStateUpdate",
                 newState: {
@@ -165,11 +173,11 @@ class Chess extends Game {
                 }
             });
         });
-        
+
         //Gather and Translate Decisions
         var decisions = [];
-        this.state.board.forEach((row,i)=>row.forEach((square,j)=>{
-            if(square.piece && square.piece.color == (this.state.turn==0?"white":"black")){
+        game.state.board.forEach((row,i)=>row.forEach((square,j)=>{
+            if(square.piece && square.piece.color == (game.state.turn==0?"white":"black")){
                 var actions = square.piece.getValidActions();
                 var newDecisions = actions.map(action=>{
                     return {
@@ -181,11 +189,11 @@ class Chess extends Game {
                 decisions = decisions.concat(newDecisions);
             }
         }));
-        this.players[this.state.turn].send({
+        game.players[game.state.turn].send({
             type: "decisionList",
             list: decisions
         });
-        this.players[+(!this.state.turn)].send({
+        game.players[+(!game.state.turn)].send({
             type: "decisionList",
             list: []
         });
@@ -270,7 +278,7 @@ class Pawn extends Piece {
         super(color);
         this.forward = color=="white"?1:-1;
         this.doubleStepped = false;
-        this.src = "/Chess/pieces/pawn_"+this.color+".png";
+        this.src = "/Chess/resources/pieces/pawn_"+this.color+".png";
     }
 
     getValidActions(){
@@ -386,7 +394,7 @@ class Rook extends LinearMover {
             [0,1],
             [0,-1]
         ];
-        this.src = "/Chess/pieces/rook_"+this.color+".png";
+        this.src = "/Chess/resources/pieces/rook_"+this.color+".png";
     }
 
     moveTo(x,y){
@@ -408,7 +416,7 @@ class Bishop extends LinearMover {
             [-1,1],
             [-1,-1]
         ];
-        this.src = "/Chess/pieces/bishop_"+this.color+".png";
+        this.src = "/Chess/resources/pieces/bishop_"+this.color+".png";
     }
 }
 
@@ -425,7 +433,7 @@ class Queen extends LinearMover {
             [-1,1],
             [-1,-1]
         ];
-        this.src = "/Chess/pieces/queen_"+this.color+".png";
+        this.src = "/Chess/resources/pieces/queen_"+this.color+".png";
     }
 }
 
@@ -473,7 +481,7 @@ class Knight extends RelativeMover {
             [-1,2],
             [-1,-2]
         ];
-        this.src = "/Chess/pieces/knight_"+this.color+".png";
+        this.src = "/Chess/resources/pieces/knight_"+this.color+".png";
     }
 }
 
@@ -491,7 +499,7 @@ class King extends Piece { //Does not extend RelativeMover because the only Rela
             [-1,1],
             [-1,-1]
         ];
-        this.src = "/Chess/pieces/king_"+this.color+".png";
+        this.src = "/Chess/resources/pieces/king_"+this.color+".png";
     }
 
     getValidActions(){ //Similar to the RelativeMover; wish I could super() method calls so I could just extend this instead of repeating it here

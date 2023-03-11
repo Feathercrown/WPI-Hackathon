@@ -1,4 +1,4 @@
-class WS_Client {
+class Legacy_WS_Client {
     constructor(uuid, name, ws, server){
         this.uuid = uuid;
         this.user = {
@@ -8,6 +8,7 @@ class WS_Client {
         this.ws = ws;
         this.server = server;
         this.curGame = null;
+        this.clientType = "Legacy_WS_Client"; //Must match class name (TODO: Automatically figure out the class name somehow?)
 
         //Heartbeat to ensure client stays connected
         this.alive = true;
@@ -28,7 +29,7 @@ class WS_Client {
             }
         }, this.server.config.WSClientTimeout)
         ws.on('pong', ()=>{this.alive=true;});
-        
+
         //Receive messages from the client and pass them to the server
         ws.on('message', (msg) => {
             try {
@@ -53,4 +54,4 @@ class WS_Client {
     }
 }
 
-module.exports = {WS_Client};
+module.exports = {Legacy_WS_Client};

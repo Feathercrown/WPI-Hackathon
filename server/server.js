@@ -11,7 +11,7 @@ const randName = require("random-anonymous-animals");
 //Websockets
 const ws = require('ws');
 server.wss = new ws.WebSocketServer({ port: server.config.websocketPort });
-const WS_Client = require('../clients/WS_Client/WS_Client.js').WS_Client;
+const Legacy_WS_Client = require('../clients/Legacy_WS_Client/Legacy_WS_Client.js').Legacy_WS_Client;
 
 //Express
 const express = require('express');
@@ -38,8 +38,27 @@ fs.readdir(path.join(__dirname, '../games'), { withFileTypes: true }, (error, fi
         if(file.isDirectory()){
             //Load the game into memory and start a buffer of instances
             var gameType = file.name;
-            try { //try-catch the game file loading process since fs.exists() isn't recommended. Yeah, a config file seems like the right move... although that wouldn't stop me from needing to use this try/catch anyways.
-                server.gameTypes.set(gameType, require(`../games/${gameType}/${gameType}.js`)); //This is unholy, but only a little. TODO: Have a manifest or config of some sort to determine which file(s) to load the game(s) (+variants?) from?
+            var gameConfig;
+            try {
+                gameConfig = require(`../games/${gameType}/config.json`);
+                if(!gameConfig.mainFile){ //TODO: Better way to handle default config values?
+                    gameConfig.mainFile = `${gameType}.js`;
+                }
+            } catch(err) {
+                console.error(`Error: Could not load config file for game ${gameType} (${err.message}); attempting to load with default settings`);
+                gameConfig = {
+                    "mainFile": `${gameType}.js`,
+                    "clients": {
+                        "Extensible_WS_Client": {
+                            "enabled": true,
+                            "translator": "translators/Extensible_WS_Translator.js" //TODO: Not this?
+                        }
+                    }
+                }; //TODO: Check default settings (maybe "Game.js" main file?)
+            }
+            console.log(gameConfig);
+            try { //try-catch the game file loading process since fs.exists() isn't recommended
+                server.gameTypes.set(gameType, require(`../games/${gameType}/${gameConfig.mainFile}`)); //This is unholy, but only a little
                 for(var i=0; i<server.config.unusedGameBuffer; i++){ //TODO: Convert createGame to createGames and use that here?
                     server.createGame(gameType);
                 }
@@ -60,7 +79,7 @@ fs.readdir(path.join(__dirname, '../games'), { withFileTypes: true }, (error, fi
 //Express Server
 server.app.get('/', (req, res, next) => {
     var options = {
-        root: path.join(__dirname, '../clients/WS_Client/public'),
+        root: path.join(__dirname, '../clients/Legacy_WS_Client/public'),
         dotfiles: 'deny',
         headers: {
             'x-timestamp': Date.now(),
@@ -77,7 +96,7 @@ server.app.get('/', (req, res, next) => {
     });
 })
 
-server.app.use('/', express.static('clients/WS_Client/public'));
+server.app.use('/', express.static('clients/Legacy_WS_Client/public'));
 server.app.use('/games', express.static('games')); //TODO: Pass images directly as blobs? No, keep game folder public, it can have rules PDFs and other useful things in it as well!
 
 //REST API
@@ -106,7 +125,7 @@ server.app.listen(server.config.expressPort, () => {
 //Websocket Server
 server.wss.on('connection', function connection(ws, req) {
     var clientUUID = generateUUID();
-    var client = new WS_Client(clientUUID, randName(clientUUID), ws, server);
+    var client = new Legacy_WS_Client(clientUUID, randName(clientUUID), ws, server);
     server.clients.set(client.uuid, client);
     console.log("New connection with UUID %s", client.uuid);
 });
@@ -184,8 +203,17 @@ server.receive = function (msg, client) {
             }
             break;
         case "gameDecision":
-            client.curGame.process(client, msg.decision);
-            //TODO: Do some processing here, or just let the game handle everything? Probably the second-- that provides the most modularity and the least coupling.
+            var stateChange = client.curGame.process(client, msg.decision); //TODO: Keep only this line, and do all of this processing inside of /games/Common/Game.js? This would allow games to work differently if necessary.
+            if(stateChange){
+                client.curGame.players.forEach((targetClient) => {
+                    var translator = client.curGame.translators[targetClient.clientType];
+                    if(translator){
+                        targetClient.send(translator.translate(client.curGame, stateChange)); //Send both the update and the overall game, so the translation function can work off of either or even ensure parity between them!
+                    } else {
+                        console.error(`Error: No translator enabled for game ${client.curGame/*TODO: How to get game type from game?*/} and client type ${client.clientType}`);
+                    }
+                });
+            }
             break;
         case "":
             console.error("Error: Client %s sent message with no type", client.uuid);
