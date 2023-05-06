@@ -51,7 +51,11 @@ html, body {
     margin: 5px;
 }
 
-#chat-submit {
-    display: block;
+#chat-buttons {
     margin: 5px;
+    display: flex;
+    flex-flow: row nowrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 5px;
 }

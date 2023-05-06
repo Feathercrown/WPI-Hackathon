@@ -88,3 +88,7 @@ body {
 .align-end {
     align-self: flex-end;
 }
+
+#updates > .section-title {
+    margin-bottom: 0px; /* The announcement headings already have a large margin */
+}

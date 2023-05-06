@@ -1,34 +1,66 @@
-const server = {};
-server.config = require('../config.json');
+//Imports and Configuration
+const server = {
+    clients: new Map(),
+    games: new Map(),
+    gameTypes: new Map()
+};
+server.config = require('./config.json');
 const generateUUID = require('uuid').v4;
+const randName = require("random-anonymous-animals");
+
+//Websockets
 const ws = require('ws');
 server.wss = new ws.WebSocketServer({ port: server.config.websocketPort });
+const WS_Client = require('../clients/WS_Client/WS_Client.js').WS_Client;
+
+//Express
 const express = require('express');
 var bodyParser = require('body-parser');
+const fs = require('fs');
 const path = require('path/posix');
 server.app = express();
-const WS_Client = require('./WS_Client.js').WS_Client;
-const randName = require("random-anonymous-animals");
-const Game = require('../games/Game.js').Game;
-server.clients = new Map();
-server.games = new Map();
-server.gameTypes = new Map();
 
-//Load all games specified in the config; TODO: Load every game in the "games" folder
-var gamesToLoad = server.config.permanentGames.filter((el, idx, arr)=>{
-    return arr.slice(idx+1).indexOf(el) == -1; //Only keep one (the last) copy of each game file name
-});
-gamesToLoad.forEach(gameName=>server.gameTypes.set(gameName, require(`../games/${gameName}.js`))); //This is unholy
-server.config.permanentGames.forEach((gameName,i)=>{
+////////////
+
+//Load all games
+server.getGames = function(predicate){ //TODO: getGames or countGames?
+    return Array.from(this.games.values()).filter(game => predicate(game));
+};
+server.createGame = function(gameType){
     var gameUUID = generateUUID();
-    server.games.set(gameUUID, new (server.gameTypes.get(gameName))(gameUUID, "Elemental Chess #"+(i+1), [], server)); //This is unholier
+    var gameNum = server.getGames(game => game instanceof this.gameTypes.get(gameType)).length + 1;
+    //this.games.set(gameUUID, new (this.gameTypes.get(gameType))(gameUUID, `${gameType} #${gameNum}`, [], this)); //TODO: Readd numbering by committing to the naming strategy and having each game have a unique (not universally, just that two can't exist at once) number instead of a game name (and calculate the game name from the game type and number)
+    this.games.set(gameUUID, new (this.gameTypes.get(gameType))(gameUUID, gameType, [], this)); //name=type, players=[], server=this
+};
+fs.readdir(path.join(__dirname, '../games'), { withFileTypes: true }, (error, files) => {
+    if(error){console.error(error);}
+    files.forEach(file => {
+        if(file.isDirectory()){
+            //Load the game into memory and start a buffer of instances
+            var gameType = file.name;
+            try { //try-catch the game file loading process since fs.exists() isn't recommended. Yeah, a config file seems like the right move... although that wouldn't stop me from needing to use this try/catch anyways.
+                server.gameTypes.set(gameType, require(`../games/${gameType}/${gameType}.js`)); //This is unholy, but only a little. TODO: Have a manifest or config of some sort to determine which file(s) to load the game(s) (+variants?) from?
+                for(var i=0; i<server.config.unusedGameBuffer; i++){ //TODO: Convert createGame to createGames and use that here?
+                    server.createGame(gameType);
+                }
+                //TODO: Permanent games from config?
+            } catch(err) {
+                var translations = {
+                    'MODULE_NOT_FOUND': 'No game file found', //TODO: This error will always be thrown for Common... maybe having Common be a game folder isn't a great idea? Or just name the Game generic file Common and allow it to be loaded and used for some reason?
+                };
+                console.error(`Error: Could not load game ${gameType}: ${translations[err.code] || `Unrecognized reason (${err.code})`}`);
+                if(!translations[err.code]){console.error(err);}
+            }
+        }
+    });
 });
-//TODO: Create new games as they're needed
+
+
 
 //Express Server
 server.app.get('/', (req, res, next) => {
     var options = {
-        root: path.join(__dirname, '../public'),
+        root: path.join(__dirname, '../clients/WS_Client/public'),
         dotfiles: 'deny',
         headers: {
             'x-timestamp': Date.now(),
@@ -37,7 +69,7 @@ server.app.get('/', (req, res, next) => {
     };
     res.sendFile('/index.html', options, function (err) {
         if (err) {
-            console.error('Failed to send homepage');
+            console.error('Error: Failed to send homepage');
             next(err);
         } else {
             console.log(`Sent homepage`);
@@ -45,12 +77,13 @@ server.app.get('/', (req, res, next) => {
     });
 })
 
-server.app.use(express.static('public'));
+server.app.use('/', express.static('clients/WS_Client/public'));
+server.app.use('/games', express.static('games')); //TODO: Pass images directly as blobs? No, keep game folder public, it can have rules PDFs and other useful things in it as well!
 
 //REST API
 server.app.use(bodyParser.urlencoded({ extended: true }));
 server.app.get('/api/games', (req, res) => {
-    res.send(Array.from(server.games.values()).map(game=>{
+    res.send(Array.from(server.games.values()).map(game=>{ //Send in array format to make parsing easier on the frontend, since Maps can't be sent through JSON (afaik)
         var gameInfo = { //Don't send the entire server object over as part of each game
             uuid: game.uuid, //each "game" is a [uuid,Game] pair
             name: game.name,
@@ -58,11 +91,14 @@ server.app.get('/api/games', (req, res) => {
         }
         return gameInfo;
     }));
-}); //Send in array format to make parsing easier on the frontend, since Maps can't be sent through JSON (afaik)
+});
+server.app.get('/api/announcements', (req, res) => {
+    res.send(server.config.announcements); //That Was Easy(TM)
+});
 
 //Start Express Server
 server.app.listen(server.config.expressPort, () => {
-    console.log(`Example app listening at http://localhost:${server.config.expressPort}`);
+    console.log(`Game server listening at http://localhost:${server.config.expressPort}`);
 });
 
 
@@ -105,6 +141,12 @@ server.receive = function (msg, client) {
                 });
             }
             break;
+        case 'nameChange': //TODO: Name changes happen outside of games? Guests can't change their names?
+            //TODO: Can logged-in users change their nickname?
+            //client.user.name = msg.newName; //TODO: Disabled for now until I can figure out how this should work
+            //TODO: Prevent changing your name to someone else's or a blank name and notify other users in the game of the change through a chat message
+            //TODO: Mark chat messages from the server specially? Also, prevent people from changing their name to "Server" (and RTL char and stuff! -- prevent in chat messages too?)
+            break;
         case "gameJoin":
             var game = server.games.get(msg.gameUUID);
             if(!game){
@@ -121,6 +163,24 @@ server.receive = function (msg, client) {
                     game.start(); //TODO: Setup/start/etc. sequence?
                     console.log("Game %s started!", msg.gameUUID);
                 }
+                if(server.getGames(otherGame => otherGame.type === game.type && otherGame.players.length == 0).length < server.config.unusedGameBuffer){ //TODO: Misnomer, otherGame can equal game
+                    console.log(`Creating new game of ${game.type} to replace newly occupied game`);
+                    server.createGame(game.type);
+                }
+            }
+            break;
+        case "gameLeave":
+            var game = server.games.get(msg.gameUUID); //TODO: Do this, or get game uuid from client?
+            client.curGame = null;
+            if(!game){
+                console.log("Client %s failed to leave game %s: Game does not exist", client.uuid, msg.gameUUID);
+            } else {
+                game.players = game.players.filter(player => player != client);
+                if(game.players.length == 0 && server.getGames(otherGame => otherGame.type === game.type && otherGame.players.length == 0).length > server.config.unusedGameBuffer){
+                    console.log(`Removing unneeded empty game of ${game.type}`);
+                    server.games.delete(game.uuid);
+                }
+                //TODO: Archive game; prevent new joins; etc.
             }
             break;
         case "gameDecision":
@@ -131,7 +191,7 @@ server.receive = function (msg, client) {
             console.error("Error: Client %s sent message with no type", client.uuid);
             break;
         default:
-            console.error("Error: Client %s sent message with unrecognized type", client.uuid);
+            console.error("Error: Client %s sent message with unrecognized type %s", client.uuid, msg.type);
             break;
     }
 };
