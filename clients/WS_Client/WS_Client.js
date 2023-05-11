@@ -1,5 +1,6 @@
 class WS_Client {
     constructor(uuid, name, ws, server){
+        this.type = "WS_Client"; //TODO: this.constructor.name;
         this.uuid = uuid;
         this.user = {
           name: name, //Previously `Guest (${this.uuid})`; now the server determines a random animal name
@@ -7,7 +8,7 @@ class WS_Client {
         };
         this.ws = ws;
         this.server = server;
-        this.curGame = null;
+        this.room = null;
 
         //Heartbeat to ensure client stays connected
         this.alive = true;
@@ -28,7 +29,7 @@ class WS_Client {
             }
         }, this.server.config.WSClientTimeout)
         ws.on('pong', ()=>{this.alive=true;});
-        
+
         //Receive messages from the client and pass them to the server
         ws.on('message', (msg) => {
             try {
@@ -42,8 +43,9 @@ class WS_Client {
         });
     }
 
+    //Receive messages from the client and pass them to the server
     receive(msg){
-        this.server.receive(msg, this);
+        this.room.receive(this, msg);
     }
 
     //Receive messages from the server and pass them to the client
