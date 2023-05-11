@@ -115,11 +115,13 @@ server.wss.on('close', function close() {
     console.log('Websocket server closed');
 });
 
-/*server.wss.on("message", function message(h){
+/*
+server.wss.on("message", function message(h){
   console.log("h: "+h);
-});*/
+});
+*/
 
-server.receive = function (msg, client) {
+server.receive = function (client, msg) {
     console.log('Client %s sent message: %o', client.uuid, msg);
     switch (msg.type) {
         case "login": //Can a client switch users while playing a game? Are games tied to clients or users? Clients, because you can be userless (a guest)?

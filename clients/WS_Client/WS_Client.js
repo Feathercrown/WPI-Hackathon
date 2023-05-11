@@ -45,7 +45,11 @@ class WS_Client {
 
     //Receive messages from the client and pass them to the server
     receive(msg){
-        this.room.receive(this, msg);
+        if(this.room == null){
+            this.server.receive(this, msg);
+        } else {
+            this.room.receive(this, msg);
+        }
     }
 
     //Receive messages from the server and pass them to the client

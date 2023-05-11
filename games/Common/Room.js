@@ -1,3 +1,4 @@
+//TODO: Move Room.js out of /Common, or /Common out of /games?
 class Room {
     constructor(uuid, name, game, players, server){
         this.uuid = uuid;
