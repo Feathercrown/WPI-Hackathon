@@ -23,17 +23,19 @@ server.app = express();
 
 ////////////
 
-//Load all games
+//Helper functions
 server.getRooms = function(predicate){ //TODO: getRooms or countRooms?
     return Array.from(this.rooms.values()).filter(room => predicate(room));
 };
 server.createRoom = function(gameType){
     var gameUUID = generateUUID(); //TODO: Game or room UUID?
-    //var gameNum = server.getRooms(game => game instanceof this.gameTypes.get(gameType)).length + 1;
-    //this.rooms.set(gameUUID, new (this.gameTypes.get(gameType))(gameUUID, `${gameType} #${gameNum}`, [], this)); //TODO: Readd numbering by committing to the naming strategy and having each game have a unique (not universally, just that two can't exist at once) number instead of a game name (and calculate the game name from the game type and number)
-    var game = new (this.gameTypes.get(gameType))(gameUUID, gameType, [], this); //name=type, players=[], server=this //TODO: Remove some things from Game and move them to Room
-    this.rooms.set(gameUUID, new Room(gameUUID, gameType, game, [], this));
+    //var gameNum = server.getRooms(room => room instanceof this.gameTypes.get(gameType)).length + 1;
+    //TODO: Readd numbering by committing to the naming strategy and having each game have a unique (not universally, just that two can't exist at once) number instead of a game name (and calculate the game name from the game type and number)
+    var game = new (this.gameTypes.get(gameType))();
+    this.rooms.set(gameUUID, new Room(gameUUID, gameType, game, [], this)); //uuid, name, game, players, server
 };
+
+//Load all games
 fs.readdir(path.join(__dirname, '../games'), { withFileTypes: true }, (error, files) => {
     if(error){console.error(error);}
     files.forEach(file => {
@@ -117,12 +119,6 @@ server.wss.on('close', function close() {
     console.log('Websocket server closed');
 });
 
-/*
-server.wss.on("message", function message(h){
-  console.log("h: "+h);
-});
-*/
-
 server.receive = function (client, msg) {
     console.log('Client %s sent message: %o', client.uuid, msg);
     switch (msg.type) {
@@ -201,6 +197,6 @@ server.receive = function (client, msg) {
     }
 };
 
-server.send = function (msg, client) {
+server.send = function (msg, client) { //TODO: Unused; rework having a send method for stuff in general?
     client.send(msg);
 };

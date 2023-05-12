@@ -6,6 +6,8 @@ class Room {
         this.players = players;
         this.server = server;
         this.game = game;
+        this.game.room = this;
+
         var curRoom = this;
         this.translators = { //TODO: Don't hardcode these
             "WS_Client": {
@@ -41,18 +43,16 @@ class Room {
 
     addPlayer(client){
         this.players.push(client);
-        this.game.players.push(client); //TODO: Improve?
         client.room = this;
         //this.addPlayer(this.players.length-1); //TODO: Notify game
     }
 
     removePlayer(client){
-        //TODO: Use "game.players = game.players.filter(player => player != client);" ?
+        //TODO: Use "this.players = this.players.filter(player => player != client);" ?
         var playerIndex = this.players.findIndex(player => player==client);
         //this.players[playerIndex] = null;
-        //this.removePlayer(playerIndex); //TODO: Notify game
+        //this.removePlayer(playerIndex); //TODO: Notify game (requires knowing the player index so can't use the shortcut above?)
         this.players.splice(playerIndex, 1); //Removes the player from the players array
-        this.game.players.splice(playerIndex, 1);
         client.room = null;
     }
 
