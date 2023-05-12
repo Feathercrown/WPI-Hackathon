@@ -20,6 +20,9 @@ const fs = require('fs');
 const path = require('path/posix');
 server.app = express();
 
+//Rooms
+const Room = require('../games/Common/Room.js');
+
 ////////////
 
 //Load all games
@@ -28,9 +31,10 @@ server.getGames = function(predicate){ //TODO: getGames or countGames?
 };
 server.createGame = function(gameType){
     var gameUUID = generateUUID();
-    var gameNum = server.getGames(game => game instanceof this.gameTypes.get(gameType)).length + 1;
+    //var gameNum = server.getGames(game => game instanceof this.gameTypes.get(gameType)).length + 1;
     //this.games.set(gameUUID, new (this.gameTypes.get(gameType))(gameUUID, `${gameType} #${gameNum}`, [], this)); //TODO: Readd numbering by committing to the naming strategy and having each game have a unique (not universally, just that two can't exist at once) number instead of a game name (and calculate the game name from the game type and number)
-    this.games.set(gameUUID, new (this.gameTypes.get(gameType))(gameUUID, gameType, [], this)); //name=type, players=[], server=this
+    var game = new (this.gameTypes.get(gameType))(gameUUID, gameType, [], this); //name=type, players=[], server=this //TODO: Remove some things from Game and move them to Room
+    this.games.set(gameUUID, new Room(gameUUID, gameType, game, [], this));
 };
 fs.readdir(path.join(__dirname, '../games'), { withFileTypes: true }, (error, files) => {
     if(error){console.error(error);}
@@ -154,31 +158,29 @@ server.receive = function (client, msg) {
             if(!game){
                 //TODO: Notify client here too, as below
                 console.log("Client %s failed to join game %s: Game does not exist", client.uuid, msg.gameUUID);
-            } else if(game.players.length >= game.maxPlayers){
+            } else if(game.players.length >= game.game.maxPlayers){ //TODO: room.game (global change) - won't look as weird later! (I hope!)
                 //TODO: Notify client and return them to the homepage, or let them watch/spectate (add watch/spectate button to homepage game list?)
                 console.log("Client %s failed to join game %s: Game already full", client.uuid, msg.gameUUID); //TODO: game.uuid instead of msg.gameUUID?
             } else {
-                game.players.push(client);
-                client.curGame = game;
+                game.addPlayer(client);
                 console.log("Client %s joined game %s", client.uuid, msg.gameUUID);
-                if(game.players.length == game.maxPlayers){ //TODO: Better ways to start a game? Ready system? Eg. player list w/ ready display, checkbox by submit button, gameReady and gameUnready, etc.?
-                    game.start(); //TODO: Setup/start/etc. sequence?
+                if(game.players.length == game.game.maxPlayers){ //TODO: Better ways to start a game? Ready system? Eg. player list w/ ready display, checkbox by submit button, gameReady and gameUnready, etc.?
+                    game.game.start(); //TODO: Setup/start/etc. sequence?
                     console.log("Game %s started!", msg.gameUUID);
                 }
-                if(server.getGames(otherGame => otherGame.type === game.type && otherGame.players.length == 0).length < server.config.unusedGameBuffer){ //TODO: Misnomer, otherGame can equal game
-                    console.log(`Creating new game of ${game.type} to replace newly occupied game`);
-                    server.createGame(game.type);
+                if(server.getGames(otherGame => otherGame.game.type === game.game.type && otherGame.players.length == 0).length < server.config.unusedGameBuffer){ //TODO: Misnomer, otherGame can equal game
+                    console.log(`Creating new game of ${game.game.type} to replace newly occupied game`);
+                    server.createGame(game.game.type);
                 }
             }
             break;
         case "gameLeave":
             var game = server.games.get(msg.gameUUID); //TODO: Do this, or get game uuid from client?
-            client.curGame = null;
             if(!game){
                 console.log("Client %s failed to leave game %s: Game does not exist", client.uuid, msg.gameUUID);
             } else {
-                game.players = game.players.filter(player => player != client);
-                if(game.players.length == 0 && server.getGames(otherGame => otherGame.type === game.type && otherGame.players.length == 0).length > server.config.unusedGameBuffer){
+                game.removePlayer(client);
+                if(game.players.length == 0 && server.getGames(otherGame => otherGame.game.type === game.game.type && otherGame.players.length == 0).length > server.config.unusedGameBuffer){
                     console.log(`Removing unneeded empty game of ${game.type}`);
                     server.games.delete(game.uuid);
                 }
@@ -186,7 +188,8 @@ server.receive = function (client, msg) {
             }
             break;
         case "gameDecision":
-            client.curGame.process(client, msg.decision);
+            client.room.game.process(client, msg.decision);
+            console.error("Error: Server received gameDecision event (should not happen!)");
             //TODO: Do some processing here, or just let the game handle everything? Probably the second-- that provides the most modularity and the least coupling.
             break;
         case "":

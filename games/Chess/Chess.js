@@ -165,7 +165,7 @@ class Chess extends Game {
                 }
             });
         });
-        
+
         //Gather and Translate Decisions
         var decisions = [];
         this.state.board.forEach((row,i)=>row.forEach((square,j)=>{
