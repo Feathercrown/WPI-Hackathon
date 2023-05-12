@@ -1,7 +1,7 @@
 //Imports and Configuration
 const server = {
     clients: new Map(),
-    games: new Map(),
+    rooms: new Map(),
     gameTypes: new Map()
 };
 server.config = require('./config.json');
@@ -26,15 +26,15 @@ const Room = require('../games/Common/Room.js');
 ////////////
 
 //Load all games
-server.getGames = function(predicate){ //TODO: getGames or countGames?
-    return Array.from(this.games.values()).filter(game => predicate(game));
+server.getRooms = function(predicate){ //TODO: getRooms or countRooms?
+    return Array.from(this.rooms.values()).filter(room => predicate(room));
 };
-server.createGame = function(gameType){
-    var gameUUID = generateUUID();
+server.createRoom = function(gameType){
+    var gameUUID = generateUUID(); //TODO: Game or room UUID?
     //var gameNum = server.getGames(game => game instanceof this.gameTypes.get(gameType)).length + 1;
-    //this.games.set(gameUUID, new (this.gameTypes.get(gameType))(gameUUID, `${gameType} #${gameNum}`, [], this)); //TODO: Readd numbering by committing to the naming strategy and having each game have a unique (not universally, just that two can't exist at once) number instead of a game name (and calculate the game name from the game type and number)
+    //this.rooms.set(gameUUID, new (this.gameTypes.get(gameType))(gameUUID, `${gameType} #${gameNum}`, [], this)); //TODO: Readd numbering by committing to the naming strategy and having each game have a unique (not universally, just that two can't exist at once) number instead of a game name (and calculate the game name from the game type and number)
     var game = new (this.gameTypes.get(gameType))(gameUUID, gameType, [], this); //name=type, players=[], server=this //TODO: Remove some things from Game and move them to Room
-    this.games.set(gameUUID, new Room(gameUUID, gameType, game, [], this));
+    this.rooms.set(gameUUID, new Room(gameUUID, gameType, game, [], this));
 };
 fs.readdir(path.join(__dirname, '../games'), { withFileTypes: true }, (error, files) => {
     if(error){console.error(error);}
@@ -44,12 +44,12 @@ fs.readdir(path.join(__dirname, '../games'), { withFileTypes: true }, (error, fi
             var gameType = file.name;
             try { //try-catch the game file loading process since fs.exists() isn't recommended. Yeah, a config file seems like the right move... although that wouldn't stop me from needing to use this try/catch anyways.
                 server.gameTypes.set(gameType, require(`../games/${gameType}/${gameType}.js`)); //This is unholy, but only a little. TODO: Have a manifest or config of some sort to determine which file(s) to load the game(s) (+variants?) from?
-                for(var i=0; i<server.config.unusedGameBuffer; i++){ //TODO: Convert createGame to createGames and use that here?
-                    server.createGame(gameType);
+                for(var i=0; i<server.config.unusedGameBuffer; i++){ //TODO: Convert createRoom to createRooms and use that here?
+                    server.createRoom(gameType);
                 }
                 //TODO: Permanent games from config?
             } catch(err) {
-                var translations = {
+                var translations = { //TODO: Standardize error translations
                     'MODULE_NOT_FOUND': 'No game file found', //TODO: This error will always be thrown for Common... maybe having Common be a game folder isn't a great idea? Or just name the Game generic file Common and allow it to be loaded and used for some reason?
                 };
                 console.error(`Error: Could not load game ${gameType}: ${translations[err.code] || `Unrecognized reason (${err.code})`}`);
@@ -87,13 +87,13 @@ server.app.use('/games', express.static('games')); //TODO: Pass images directly 
 //REST API
 server.app.use(bodyParser.urlencoded({ extended: true }));
 server.app.get('/api/games', (req, res) => {
-    res.send(Array.from(server.games.values()).map(game=>{ //Send in array format to make parsing easier on the frontend, since Maps can't be sent through JSON (afaik)
-        var gameInfo = { //Don't send the entire server object over as part of each game
-            uuid: game.uuid, //each "game" is a [uuid,Game] pair
-            name: game.name,
-            players: game.players.map(client=>client.uuid) //TODO: clients or users?
+    res.send(Array.from(server.rooms.values()).map(room=>{ //Send in array format to make parsing easier on the frontend, since Maps can't be sent through JSON (afaik)
+        var roomInfo = { //Don't send the entire server object over as part of each game
+            uuid: room.uuid, //each "game" is a [uuid,Game] pair
+            name: room.name,
+            players: room.players.map(client=>client.uuid) //TODO: clients or users? //TODO: client.user.name?
         }
-        return gameInfo;
+        return roomInfo;
     }));
 });
 server.app.get('/api/announcements', (req, res) => {
@@ -135,10 +135,10 @@ server.receive = function (client, msg) {
             //Log out
             break;
         case "chat": //Local to your current game
-            if(!client.curGame){
+            if(!client.room){
                 console.log("Client %s failed to chat: Not in a game", client.uuid);
             } else {
-                client.curGame.players.forEach((targetClient) => {
+                client.room.players.forEach((targetClient) => {
                     targetClient.send({
                         type: "chat",
                         sender: client.user.name,
@@ -146,6 +146,7 @@ server.receive = function (client, msg) {
                     });
                 });
             }
+            console.error("Error: Server received chat event (should not happen?)");
             break;
         case 'nameChange': //TODO: Name changes happen outside of games? Guests can't change their names?
             //TODO: Can logged-in users change their nickname?
@@ -154,35 +155,35 @@ server.receive = function (client, msg) {
             //TODO: Mark chat messages from the server specially? Also, prevent people from changing their name to "Server" (and RTL char and stuff! -- prevent in chat messages too?)
             break;
         case "gameJoin":
-            var game = server.games.get(msg.gameUUID);
-            if(!game){
+            var room = server.rooms.get(msg.gameUUID);
+            if(!room){
                 //TODO: Notify client here too, as below
                 console.log("Client %s failed to join game %s: Game does not exist", client.uuid, msg.gameUUID);
-            } else if(game.players.length >= game.game.maxPlayers){ //TODO: room.game (global change) - won't look as weird later! (I hope!)
+            } else if(room.players.length >= room.game.maxPlayers){ //TODO: room.game (global change) - won't look as weird later! (I hope!)
                 //TODO: Notify client and return them to the homepage, or let them watch/spectate (add watch/spectate button to homepage game list?)
                 console.log("Client %s failed to join game %s: Game already full", client.uuid, msg.gameUUID); //TODO: game.uuid instead of msg.gameUUID?
             } else {
-                game.addPlayer(client);
+                room.addPlayer(client);
                 console.log("Client %s joined game %s", client.uuid, msg.gameUUID);
-                if(game.players.length == game.game.maxPlayers){ //TODO: Better ways to start a game? Ready system? Eg. player list w/ ready display, checkbox by submit button, gameReady and gameUnready, etc.?
-                    game.game.start(); //TODO: Setup/start/etc. sequence?
+                if(room.players.length == room.game.maxPlayers){ //TODO: Better ways to start a game? Ready system? Eg. player list w/ ready display, checkbox by submit button, gameReady and gameUnready, etc.?
+                    room.game.start(); //TODO: Setup/start/etc. sequence?
                     console.log("Game %s started!", msg.gameUUID);
                 }
-                if(server.getGames(otherGame => otherGame.game.type === game.game.type && otherGame.players.length == 0).length < server.config.unusedGameBuffer){ //TODO: Misnomer, otherGame can equal game
-                    console.log(`Creating new game of ${game.game.type} to replace newly occupied game`);
-                    server.createGame(game.game.type);
+                if(server.getGames(otherGame => otherGame.game.type === room.game.type && otherGame.players.length == 0).length < server.config.unusedGameBuffer){ //TODO: Misnomer, otherGame can equal game
+                    console.log(`Creating new game of ${room.game.type} to replace newly occupied game`);
+                    server.createRoom(room.game.type);
                 }
             }
             break;
         case "gameLeave":
-            var game = server.games.get(msg.gameUUID); //TODO: Do this, or get game uuid from client?
-            if(!game){
+            var room = server.rooms.get(msg.gameUUID); //TODO: Do this, or get game uuid from client?
+            if(!room){
                 console.log("Client %s failed to leave game %s: Game does not exist", client.uuid, msg.gameUUID);
             } else {
-                game.removePlayer(client);
-                if(game.players.length == 0 && server.getGames(otherGame => otherGame.game.type === game.game.type && otherGame.players.length == 0).length > server.config.unusedGameBuffer){
-                    console.log(`Removing unneeded empty game of ${game.type}`);
-                    server.games.delete(game.uuid);
+                room.removePlayer(client);
+                if(room.players.length == 0 && server.getGames(otherGame => otherGame.game.type === room.game.type && otherGame.players.length == 0).length > server.config.unusedGameBuffer){
+                    console.log(`Removing unneeded empty game of ${room.game.type}`);
+                    server.rooms.delete(room.uuid);
                 }
                 //TODO: Archive game; prevent new joins; etc.
             }
