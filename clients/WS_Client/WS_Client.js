@@ -17,7 +17,7 @@ class WS_Client {
                 this.ws.terminate(); //Close WS connection
                 this.receive({ //Spoof the gameLeave event
                     type: 'gameLeave',
-                    gameUUID: this.curGame ? this.curGame.uuid : '' //JUST in case (TODO: Nullish coalescing?)
+                    gameUUID: this.room ? this.room.uuid : '' //JUST in case (TODO: Nullish coalescing?)
                 });
                 clearInterval(this.pingInterval);
                 this.server.clients.delete(this.uuid);

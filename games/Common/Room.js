@@ -7,7 +7,7 @@ class Room {
         this.server = server;
         this.game = game;
         var curRoom = this;
-        this.translators = {
+        this.translators = { //TODO: Don't hardcode these
             "WS_Client": {
                 room: curRoom,
                 receive: function(client, msg){

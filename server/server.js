@@ -7,6 +7,7 @@ const server = {
 server.config = require('./config.json');
 const generateUUID = require('uuid').v4;
 const randName = require("random-anonymous-animals");
+const Room = require('../games/Common/Room.js');
 
 //Websockets
 const ws = require('ws');
@@ -20,9 +21,6 @@ const fs = require('fs');
 const path = require('path/posix');
 server.app = express();
 
-//Rooms
-const Room = require('../games/Common/Room.js');
-
 ////////////
 
 //Load all games
@@ -31,7 +29,7 @@ server.getRooms = function(predicate){ //TODO: getRooms or countRooms?
 };
 server.createRoom = function(gameType){
     var gameUUID = generateUUID(); //TODO: Game or room UUID?
-    //var gameNum = server.getGames(game => game instanceof this.gameTypes.get(gameType)).length + 1;
+    //var gameNum = server.getRooms(game => game instanceof this.gameTypes.get(gameType)).length + 1;
     //this.rooms.set(gameUUID, new (this.gameTypes.get(gameType))(gameUUID, `${gameType} #${gameNum}`, [], this)); //TODO: Readd numbering by committing to the naming strategy and having each game have a unique (not universally, just that two can't exist at once) number instead of a game name (and calculate the game name from the game type and number)
     var game = new (this.gameTypes.get(gameType))(gameUUID, gameType, [], this); //name=type, players=[], server=this //TODO: Remove some things from Game and move them to Room
     this.rooms.set(gameUUID, new Room(gameUUID, gameType, game, [], this));
@@ -159,9 +157,9 @@ server.receive = function (client, msg) {
             if(!room){
                 //TODO: Notify client here too, as below
                 console.log("Client %s failed to join game %s: Game does not exist", client.uuid, msg.gameUUID);
-            } else if(room.players.length >= room.game.maxPlayers){ //TODO: room.game (global change) - won't look as weird later! (I hope!)
+            } else if(room.players.length >= room.game.maxPlayers){
                 //TODO: Notify client and return them to the homepage, or let them watch/spectate (add watch/spectate button to homepage game list?)
-                console.log("Client %s failed to join game %s: Game already full", client.uuid, msg.gameUUID); //TODO: game.uuid instead of msg.gameUUID?
+                console.log("Client %s failed to join game %s: Game already full", client.uuid, msg.gameUUID);
             } else {
                 room.addPlayer(client);
                 console.log("Client %s joined game %s", client.uuid, msg.gameUUID);
@@ -169,19 +167,21 @@ server.receive = function (client, msg) {
                     room.game.start(); //TODO: Setup/start/etc. sequence?
                     console.log("Game %s started!", msg.gameUUID);
                 }
-                if(server.getGames(otherGame => otherGame.game.type === room.game.type && otherGame.players.length == 0).length < server.config.unusedGameBuffer){ //TODO: Misnomer, otherGame can equal game
+                var emptyRoomsOfSameType = server.getRooms(otherRoom => otherRoom.game.type === room.game.type && otherRoom.players.length == 0).length;
+                if(emptyRoomsOfSameType < server.config.unusedGameBuffer){
                     console.log(`Creating new game of ${room.game.type} to replace newly occupied game`);
                     server.createRoom(room.game.type);
                 }
             }
             break;
         case "gameLeave":
-            var room = server.rooms.get(msg.gameUUID); //TODO: Do this, or get game uuid from client?
+            var room = server.rooms.get(msg.gameUUID);
             if(!room){
                 console.log("Client %s failed to leave game %s: Game does not exist", client.uuid, msg.gameUUID);
             } else {
                 room.removePlayer(client);
-                if(room.players.length == 0 && server.getGames(otherGame => otherGame.game.type === room.game.type && otherGame.players.length == 0).length > server.config.unusedGameBuffer){
+                var emptyRoomsOfSameType = server.getRooms(otherRoom => otherRoom.game.type === room.game.type && otherRoom.players.length == 0).length;
+                if(room.players.length == 0 && emptyRoomsOfSameType > server.config.unusedGameBuffer){
                     console.log(`Removing unneeded empty game of ${room.game.type}`);
                     server.rooms.delete(room.uuid);
                 }
@@ -191,7 +191,6 @@ server.receive = function (client, msg) {
         case "gameDecision":
             client.room.game.process(client, msg.decision);
             console.error("Error: Server received gameDecision event (should not happen!)");
-            //TODO: Do some processing here, or just let the game handle everything? Probably the second-- that provides the most modularity and the least coupling.
             break;
         case "":
             console.error("Error: Client %s sent message with no type", client.uuid);
