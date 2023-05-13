@@ -7,7 +7,7 @@ const server = {
 server.config = require('./config.json');
 const generateUUID = require('uuid').v4;
 const randName = require("random-anonymous-animals");
-const Room = require('../games/Common/Room.js');
+const Room = require('../common/Room.js');
 
 //Websockets
 const ws = require('ws');

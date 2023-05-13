@@ -1,4 +1,4 @@
-const Translator = require('../../Common/Translator.js');
+const Translator = require('../../../common/Translator.js');
 
 class WS_Translator extends Translator {
     constructor(room){

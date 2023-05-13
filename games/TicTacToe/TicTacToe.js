@@ -1,4 +1,4 @@
-const Game = require('../Common/Game.js');
+const Game = require('../../common/Game.js');
 
 class TicTacToe extends Game {
     constructor(){
