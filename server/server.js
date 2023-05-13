@@ -2,7 +2,7 @@
 const server = {
     clients: new Map(),
     rooms: new Map(),
-    gameTypes: new Map()
+    gameRegistry: new Map()
 };
 server.config = require('./config.json');
 const generateUUID = require('uuid').v4;
@@ -27,12 +27,18 @@ server.app = express();
 server.getRooms = function(predicate){ //TODO: getRooms or countRooms?
     return Array.from(this.rooms.values()).filter(room => predicate(room));
 };
-server.createRoom = function(gameType){
-    var gameUUID = generateUUID(); //TODO: Game or room UUID?
-    //var gameNum = server.getRooms(room => room instanceof this.gameTypes.get(gameType)).length + 1;
+server.createRoom = function(gameType){ //TODO: Move translators to inside the games? Would make creating rooms and importing/exporting games much simpler and coupled to the instantiation process
+    var roomUUID = generateUUID();
+    //var gameNum = server.getRooms(room => room.game instanceof this.gameRegistry.get(gameType).game).length + 1;
     //TODO: Readd numbering by committing to the naming strategy and having each game have a unique (not universally, just that two can't exist at once) number instead of a game name (and calculate the game name from the game type and number)
-    var game = new (this.gameTypes.get(gameType))();
-    this.rooms.set(gameUUID, new Room(gameUUID, gameType, game, [], this)); //uuid, name, game, players, server
+    var gameRegistryEntry = this.gameRegistry.get(gameType);
+    var game = new (gameRegistryEntry.game)();
+    var room = new Room(roomUUID, gameType, game, [], this); //uuid, name, game, players, server
+    room.translators = {};
+    Object.getOwnPropertyNames(gameRegistryEntry.translators).forEach(propName=>{ //TODO: Ok yeah there MUST be an easier way to do this
+        room.translators[propName] = new gameRegistryEntry.translators[propName](room);
+    });
+    this.rooms.set(roomUUID, room);
 };
 
 //Load all games
@@ -43,8 +49,8 @@ fs.readdir(path.join(__dirname, '../games'), { withFileTypes: true }, (error, fi
             //Load the game into memory and start a buffer of instances
             var gameType = file.name;
             try { //try-catch the game file loading process since fs.exists() isn't recommended. Yeah, a config file seems like the right move... although that wouldn't stop me from needing to use this try/catch anyways.
-                server.gameTypes.set(gameType, require(`../games/${gameType}/${gameType}.js`)); //This is unholy, but only a little. TODO: Have a manifest or config of some sort to determine which file(s) to load the game(s) (+variants?) from?
-                for(var i=0; i<server.config.unusedGameBuffer; i++){ //TODO: Convert createRoom to createRooms and use that here?
+                server.gameRegistry.set(gameType, require(`../games/${gameType}/${gameType}.js`)); //This is unholy, but only a little. TODO: Have a manifest or config of some sort to determine which file(s) to load the game(s) (+variants?) from?
+                for(var i=0; i<server.config.unusedGameBuffer; i++){
                     server.createRoom(gameType);
                 }
                 //TODO: Permanent games from config?
@@ -119,6 +125,9 @@ server.wss.on('close', function close() {
     console.log('Websocket server closed');
 });
 
+
+
+//Server messages from clients
 server.receive = function (client, msg) {
     console.log('Client %s sent message: %o', client.uuid, msg);
     switch (msg.type) {

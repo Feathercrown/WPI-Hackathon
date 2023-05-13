@@ -9,7 +9,7 @@ class Room {
         this.game.room = this;
 
         var curRoom = this;
-        this.translators = { //TODO: Don't hardcode these
+        this.translators = { //TODO: Don't hardcode these //Also TODO: Just attach the translators to the game itself, don't keep track of them separately
             "WS_Client": {
                 room: curRoom,
                 receive: function(client, msg){
@@ -59,6 +59,7 @@ class Room {
     receive(client, message){
         var translator = this.translators[client.type];
         if(translator){
+            console.log(Object.getOwnPropertyNames(translator));
             translator.receive(client, message);
         } else {
             console.error("Error: Game has no translator.receive for client of type "+client.type);

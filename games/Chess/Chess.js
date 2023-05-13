@@ -1,8 +1,8 @@
 const Game = require('../Common/Game.js');
 
 class Chess extends Game {
-    constructor(uuid, name, players, server){
-        super(uuid, name, players, server);
+    constructor(){
+        super();
         this.maxPlayers = 2;
         this.ready = false; //Determines if players can submit new moves or not
     }
@@ -157,7 +157,7 @@ class Chess extends Game {
                 });
             }
         }));
-        this.players.forEach((targetClient) => {
+        this.players.forEach((targetClient) => { //TODO: Use translators for sending responses to clients
             targetClient.send({ //Can't send the entire gamestate-- only a snapshot. Need to determine how to do this generally, probably-- perhaps send images and positions to the client?? With shortcut actions they can take on those images?
                 type: "gameStateUpdate",
                 newState: {
@@ -191,8 +191,6 @@ class Chess extends Game {
         });
     }
 }
-
-module.exports = Chess;
 
 class Piece {
     constructor(color, game){
@@ -536,3 +534,10 @@ class Square {
         //Literally an empty class lol
     }
 }
+
+
+var translators = {};
+translators.WS_Client = require('./translators/WS_Translator.js');
+//translators.CMD_Client = require('./translators/CMD_Translator.js');
+
+module.exports = { game: Chess, translators };
