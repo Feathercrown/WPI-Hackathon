@@ -21,6 +21,10 @@ const fs = require('fs');
 const path = require('path/posix');
 server.app = express();
 
+//Telnet
+const telnet = require('net');
+server.telnet = telnet.createServer(telnetSetup);
+
 ////////////
 
 //Helper functions
@@ -108,7 +112,7 @@ server.app.get('/api/announcements', (req, res) => {
 
 //Start Express Server
 server.app.listen(server.config.expressPort, () => {
-    console.log(`Game server listening at http://localhost:${server.config.expressPort}`);
+    console.log(`Web server listening at http://localhost:${server.config.expressPort}`);
 });
 
 
@@ -124,6 +128,21 @@ server.wss.on('connection', function connection(ws, req) {
 server.wss.on('close', function close() {
     console.log('Websocket server closed');
 });
+
+
+
+//Telnet Server
+function telnetSetup(socket){
+    console.log("Telnet client connected");
+
+    socket.on('data', function (data) {
+        console.log(data.toString());
+    });
+
+    socket.write("peepeepoopoo\r\n");
+}
+server.telnet.listen(23);
+console.log(`Telnet server listening at localhost:${server.config.telnetPort}`);
 
 
 
