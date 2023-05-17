@@ -41,6 +41,8 @@ class WS_Client {
                 //TODO: Convert to usable JSON object and continue
             }
         });
+
+        //TODO: Respond to close event the same way we do with timeouts
     }
 
     //Receive messages from the client and pass them to the server
