@@ -1,4 +1,4 @@
-class CMD_Client {
+class CMD_Client { //TODO: Extend a general client class
     constructor(uuid, name, socket, server){
         this.type = "CMD_Client"; //TODO: this.constructor.name;
         this.uuid = uuid;
@@ -26,6 +26,9 @@ class CMD_Client {
                     this.receive(this.dataBuffer);
                     this.dataBuffer = '';
                     break;
+                case 8: //Backspace
+                    this.dataBuffer = this.dataBuffer.slice(0,-1);
+                    break;
                 case 27: //Escape sequences
                     //lol idk
                     //See the following: https://tldp.org/HOWTO/Bash-Prompt-HOWTO/x361.html
@@ -52,7 +55,7 @@ class CMD_Client {
     //Receive messages from the server and pass them to the client
     send(msg){
         //TODO: Check for CONNECTING, CLOSING, or CLOSED state and throw exception? Is that possible with this socket type?
-        this.socket.write(msg);
+        this.socket.write(/*'\\033[2J'+*/msg);
     }
 }
 

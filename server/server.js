@@ -130,6 +130,8 @@ server.wss.on('close', function close() {
     console.log('Websocket server closed');
 });
 
+//TODO: server.wss.listen?
+
 
 
 //Telnet Server
@@ -278,6 +280,7 @@ server.receive = function (client, msg) {
     }
 };
 
-server.send = function (msg, client) { //TODO: Unused; rework having a send method for stuff in general?
+//Server messages to clients
+server.send = function (client, msg) { //TODO: Deal with this properly (maybe have translators for the server too?)
     client.send(msg);
 };
