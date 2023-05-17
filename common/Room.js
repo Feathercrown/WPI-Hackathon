@@ -59,7 +59,7 @@ class Room {
     receive(client, message){
         var translator = this.translators[client.type];
         if(translator){
-            console.log(Object.getOwnPropertyNames(translator));
+            //console.log(Object.getOwnPropertyNames(translator));
             translator.receive(client, message);
         } else {
             console.error("Error: Game has no translator.receive for client of type "+client.type);

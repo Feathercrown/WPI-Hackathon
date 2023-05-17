@@ -135,11 +135,25 @@ server.wss.on('close', function close() {
 
 
 //Telnet Server
+server.sendGameList = function(socket){
+    function clamp(string, length){
+        return string.padEnd(length, ' ').slice(0, length);
+    }
+    var gameList = Array.from(server.rooms.values())
+                        .map((room, idx) => `${idx+1}\t${clamp(room.name, 16)}\tPlayers: ${room.players.length}/${room.game.maxPlayers}`) //TODO: maxPlayers changes apply here
+                        .reduce((acc, cur)=>{
+                            return acc+cur+'\r\n'
+                        }, '')
+                        + 'Join a game with \'join <num>\'\r\nQuit with \'quit\'\r\n\r\n > ';
+    socket.write(gameList);
+}
+
 server.telnet.on('connection', function connection(socket){
     var clientUUID = generateUUID();
     var client = new CMD_Client(clientUUID, randName(clientUUID), socket, server); //TODO: Rename CMD_Client to Telnet_Client?
     server.clients.set(client.uuid, client);
     console.log("New Telnet connection with UUID %s", client.uuid);
+    server.sendGameList(socket);
 });
 
 server.telnet.on('close', function close() {
@@ -245,12 +259,12 @@ server.receive = function (client, msg) {
                     client.socket.end();
                     break;
                 case 'join':
-                    var idx = args[1]; //TODO: Error handling
+                    var idx = args[1]-1; //TODO: Error handling
                     var room = Array.from(server.rooms.values())[idx];
                     //Begin paste from WS_Client handler (TODO: Merge with that handler)
                     if(!room){
                         //TODO: Notify client here too, as below
-                        console.log("Client %s failed to join game %s: Game does not exist", client.uuid, room.uuid);
+                        console.log("Client %s failed to join game [no uuid; index %s]: Game does not exist", client.uuid, idx);
                     } else if(room.players.length >= room.game.maxPlayers){
                         //TODO: Notify client and return them to the homepage, or let them watch/spectate (add watch/spectate button to homepage game list?)
                         console.log("Client %s failed to join game %s: Game already full", client.uuid, room.uuid);

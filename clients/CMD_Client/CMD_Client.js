@@ -15,32 +15,49 @@ class CMD_Client { //TODO: Extend a general client class
         socket.on('close',()=>{this.alive=false;});
 
         //Receive messages from the client and pass them to the server
-        //Requires a decent amount of processing
-        //TODO: Errors will happen when receiving multiple chars / esc seqs at once into 'data'
+        //Requires a decent amount of processing - TODO: Use a proper state machine, with recursion maybe?
         this.dataBuffer = '';
+        this.state = 'normal';
         socket.on('data', (data)=>{
+            this.state = 'normal'; //Assume escape sequences last until the end of the last chunk of data and no further (TODO: Part of esc seq hack)
             data = data.toString();
-            console.log(data, Array.from(data).map(char=>char.charCodeAt(0)));
-            switch(data.charCodeAt(0)){
-                case 13: //Enter
-                    this.receive(this.dataBuffer);
-                    this.dataBuffer = '';
-                    break;
-                case 8: //Backspace
-                    this.dataBuffer = this.dataBuffer.slice(0,-1);
-                    break;
-                case 27: //Escape sequences
-                    //lol idk
-                    //See the following: https://tldp.org/HOWTO/Bash-Prompt-HOWTO/x361.html
-                    break;
-                default: //Normal characters
-                    this.dataBuffer += data;
-                    break;
-            }
+            data.split('').forEach(data => {
+                var code = data.charCodeAt(0);
+                console.log(data, Array.from(data).map(char=>char.charCodeAt(0)));
+                if(this.state == 'escapeSeq'){
+                    //TODO: Properly handle escape sequences (somehow!)
+                } else if(this.state == 'postEnter' && code == 10){
+                    //Ignore character to allow \r\n
+                } else if(this.state == 'telnetCommand'){
+                    if(code != 65533){
+                        this.state = 'normal';
+                    }
+                } else if(this.state == 'normal' || this.state == 'postEnter'){
+                    switch(code){
+                        case 65533: //Telnet protocol commands; silently ignore because we're using telnet as a plain socket (and Unicode messes with them anyways)
+                            this.state = 'telnetCommand';
+                            break;
+                        case 13: //Enter
+                            this.receive(this.dataBuffer);
+                            this.state = 'postEnter';
+                            //console.log(Array.from(this.dataBuffer).map(char=>char.charCodeAt(0)));
+                            this.dataBuffer = '';
+                            break;
+                        case 8: //Backspace
+                            this.dataBuffer = this.dataBuffer.slice(0,-1);
+                            break;
+                        case 27: //Escape sequences
+                            this.state = 'escapeSeq';
+                            //lol idk
+                            //See the following: https://tldp.org/HOWTO/Bash-Prompt-HOWTO/x361.html
+                            break;
+                        default: //Normal characters
+                            this.dataBuffer += data;
+                            break;
+                    }
+                }
+            });
         });
-
-        //TODO: Remove
-        socket.write("peepeepoopoo\r\n");
     }
 
     //Receive messages from the client and pass them to the server
@@ -55,7 +72,7 @@ class CMD_Client { //TODO: Extend a general client class
     //Receive messages from the server and pass them to the client
     send(msg){
         //TODO: Check for CONNECTING, CLOSING, or CLOSED state and throw exception? Is that possible with this socket type?
-        this.socket.write(/*'\\033[2J'+*/msg);
+        this.socket.write('\x1B[2J'+msg);
     }
 }
 

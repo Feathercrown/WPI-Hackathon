@@ -15,7 +15,9 @@ class CMD_Translator extends Translator {
             case 'put':
                 if(args[1] && args[2] && (/^[012]$/).test(args[1]) && (/^[012]$/).test(args[2])){
                     this.game.process(client, {x:args[1],y:args[2]}); //TODO: Use return values and flatMap them then process them instead of having the translator manually call methods? Or have that be a soft interface, not a hard rule?
-                } //TODO: Else error back
+                } else {
+                    client.socket.write('\r\n\r\nInvalid arguments. Try again:\r\n\r\n > ');
+                }
                 break;
             case 'quit':
             case 'exit':
@@ -36,6 +38,7 @@ class CMD_Translator extends Translator {
         console.log("CMD translator sent: "+msg);
         var display = '\r\n';
         for(var i=0; i<3; i++){
+            display += ' ';
             for(var j=0; j<3; j++){
                 display += msg.board[i][j];
                 if(j!=2){
@@ -43,14 +46,16 @@ class CMD_Translator extends Translator {
                 }
             }
             if(i!=2){
-                display += '\r\n-+-+-\r\n';
+                display += '\r\n -+-+-\r\n';
             } else {
-                display += '\r\n';
+                display += '\r\n\r\n';
             }
         }
         if(msg.winner == null){
             var playerNum = this.room.players.findIndex(player=>player==client);
-            display += 'You are '+(playerNum==0?'X':'O');
+            display += 'You are \''+(playerNum==0?'X':'O')+'\'.\r\n';
+            display += 'Place pieces with \'go <x> <y>\'!\r\n';
+            display += 'Quit with \'quit\'.'
         } else if(msg.winner == client){
             display += 'You win! :D';
         } else if(msg.winner == 'tie'){
@@ -58,7 +63,7 @@ class CMD_Translator extends Translator {
         } else {
             display += 'You lose! :(';
         }
-        display += '\r\n';
+        display += '\r\n\r\n > ';
         client.send(display);
     }
 }
