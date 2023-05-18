@@ -26,7 +26,7 @@ class CMD_Translator extends Translator {
                 //TODO: Boot back to 'main menu'?
                 client.socket.end();
                 break;
-            case 'help':
+            case 'help': //TODO
                 break;
             default:
                 console.log('Unknown command'); //TODO
