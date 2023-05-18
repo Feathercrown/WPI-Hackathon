@@ -48,7 +48,7 @@ class TicTacToe extends Game {
         ){
             this.state.winner = client;
             this.ready = false;
-        } else if(board.every(row=>row.every(cell=>cell==' '))){
+        } else if(board.every(row=>row.every(cell=>cell!=' '))){
             this.state.winner = 'tie'; //TODO: Bruh mixing data types is cringe
         }
     }
