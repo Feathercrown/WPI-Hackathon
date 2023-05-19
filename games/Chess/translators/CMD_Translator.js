@@ -8,10 +8,10 @@ class CMD_Translator extends Translator {
     receive(client, msg){
         console.log("CMD translator received: "+msg);
         var args = msg.split(' ');
-        var pieceX = args[1].split('')[0];
-        var pieceY = args[1].split('')[1];
-        var moveX = args[2].split('')[0];
-        var moveY = args[2].split('')[1];
+        var pieceX = args[1]?.split('')[0];
+        var pieceY = args[1]?.split('')[1];
+        var moveX = args[2]?.split('')[0];
+        var moveY = args[2]?.split('')[1];
         switch(args[0]){
             case 'move':
             case 'capture':
@@ -33,7 +33,8 @@ class CMD_Translator extends Translator {
             case 'leave':
             case 'q':
                 //TODO: Boot back to 'main menu'?
-                client.socket.end();
+                this.server.receive(client, msg);
+                //client.socket.end();
                 break;
             case 'help': //TODO
                 break;

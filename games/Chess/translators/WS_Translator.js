@@ -7,7 +7,11 @@ class WS_Translator extends Translator {
 
     receive(client, msg){
         console.log("WS translator received: "+msg);
-        this.game.process(client, msg.decision);
+        if(msg.type == 'gameLeave'){ //TODO: Handle more types of messages! Eg. chat!
+            this.server.receive(client, msg);
+        } else {
+            this.game.process(client, msg.decision);
+        }
     }
 
     send(client, msg){
