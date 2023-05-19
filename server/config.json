@@ -1,6 +1,7 @@
 {
     "expressPort": 3000,
     "websocketPort": 8080,
+    "telnetPort": 23,
     "WSClientTimeout": 30000,
     "permanentGames": [],
     "unusedGameBuffer": 2,

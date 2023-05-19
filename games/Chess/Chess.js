@@ -1,8 +1,8 @@
-const Game = require('../Common/Game.js');
+const Game = require('../../common/Game.js');
 
 class Chess extends Game {
-    constructor(uuid, name, players, server){
-        super(uuid, name, players, server);
+    constructor(){
+        super();
         this.maxPlayers = 2;
         this.ready = false; //Determines if players can submit new moves or not
     }
@@ -70,6 +70,7 @@ class Chess extends Game {
     }
 
     process(client, decision){
+        console.log(decision);
         if(!this.ready){return;} //TODO: Logging/error handling
         if(this.players[this.state.turn] != client){return;}
         decision.piece = this.state.board[decision.piece[1]][decision.piece[0]].piece; //TODO: Improve this quick & dirty fix?
@@ -144,55 +145,12 @@ class Chess extends Game {
 
     //Notify players of the current gamestate and their new options
     updatePlayers(){
-        var tileWidth = 60; //In pixels. TODO: A (SHOULDN'T EVEN BE ON THE FRONTEND) (MAYBE SCALE IT ON THE FRONTEND?)
-        var sprites = [];
-        this.state.board.forEach((row,i)=>row.forEach((square,j)=>{
-            if(square.piece){
-                sprites.push({
-                    src: "/games"+square.piece.src, //TODO: Have a more unified or elegant way to send sprites to clients?
-                    x: j * tileWidth,
-                    y: tileWidth*7 - i * tileWidth,
-                    width: tileWidth,
-                    height: tileWidth
-                });
-            }
-        }));
-        this.players.forEach((targetClient) => {
-            targetClient.send({ //Can't send the entire gamestate-- only a snapshot. Need to determine how to do this generally, probably-- perhaps send images and positions to the client?? With shortcut actions they can take on those images?
-                type: "gameStateUpdate",
-                newState: {
-                    sprites: sprites
-                }
-            });
-        });
-        
-        //Gather and Translate Decisions
-        var decisions = [];
-        this.state.board.forEach((row,i)=>row.forEach((square,j)=>{
-            if(square.piece && square.piece.color == (this.state.turn==0?"white":"black")){
-                var actions = square.piece.getValidActions();
-                var newDecisions = actions.map(action=>{
-                    return {
-                        piece: [j,i],
-                        type: action.type,
-                        args: [[action.square.x,action.square.y]]
-                    };
-                })
-                decisions = decisions.concat(newDecisions);
-            }
-        }));
-        this.players[this.state.turn].send({
-            type: "decisionList",
-            list: decisions
-        });
-        this.players[+(!this.state.turn)].send({
-            type: "decisionList",
-            list: []
+        this.room.send({
+            state: this.state,
+            players: this.players
         });
     }
 }
-
-module.exports = Chess;
 
 class Piece {
     constructor(color, game){
@@ -536,3 +494,10 @@ class Square {
         //Literally an empty class lol
     }
 }
+
+
+var translators = {};
+translators.WS_Client = require('./translators/WS_Translator.js');
+translators.CMD_Client = require('./translators/CMD_Translator.js');
+
+module.exports = { game: Chess, translators };
