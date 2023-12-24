@@ -7,7 +7,7 @@ A comprehensive game server that allows multiple types of clients to connect to 
  - Name changing and accounts
 
 # Maybe TODOs
- - Server.log and server.error instead of using console directly, to allow logging etc.? Potentially the server should act on different   errors automatically?
+ - Server.log and server.error instead of using console directly, to allow logging etc.? Potentially the server should act on different errors automatically?
  - Game replays and archive?
  - Game lifecycle - ready up, set up, play!
  - Better error handling - crashes within a game should not be fatal to the server!

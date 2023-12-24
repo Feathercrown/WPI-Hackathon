@@ -68,4 +68,4 @@ var translators = {};
 translators.WS_Client = require('./translators/WS_Translator.js');
 translators.CMD_Client = require('./translators/CMD_Translator.js');
 
-module.exports = { game: TicTacToe, translators };
+module.exports = { game: TicTacToe, translators }; //TODO: Just attach the translators to the game itself, don't keep track of them separately?

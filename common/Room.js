@@ -1,38 +1,16 @@
 //TODO: Move Room.js out of /Common, or /Common out of /games?
 class Room {
-    constructor(uuid, name, game, players, server){
+    constructor(uuid, name, game, translators, players, server){ //TODO: Take config and instantiate game in here?
         this.uuid = uuid;
         this.name = name;
         this.players = players;
         this.server = server;
         this.game = game;
         this.game.room = this;
-
-        var curRoom = this;
-        this.translators = { //TODO: Don't hardcode these //Also TODO: Just attach the translators to the game itself, don't keep track of them separately
-            "WS_Client": {
-                room: curRoom,
-                receive: function(client, msg){
-                    console.log("WS_Client translator received: "+msg);
-                    this.room.game.process(client, msg.decision);
-                },
-                send: function(client, msg){
-                    console.log("WS_Client translator sent: "+msg);
-                    client.send(msg);
-                }
-            },
-            "CMD_Client": {
-                room: curRoom,
-                receive: function(client, msg){
-                    console.log("CMD_Client translator received: "+msg);
-                    this.room.game.process(client, msg.decision);
-                },
-                send: function(client, msg){ //TODO: Reverse order of args (globally)?
-                    console.log("CMD_Client translator sent: "+msg);
-                    client.send(msg);
-                }
-            }
-        };
+        this.translators = {};
+        Object.getOwnPropertyNames(translators).forEach(propName=>{ //For every defined translator, instantiate and add it to this room
+            this.translators[propName] = new translators[propName](this);
+        });
     }
 
     /*

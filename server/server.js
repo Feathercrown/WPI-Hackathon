@@ -38,11 +38,8 @@ server.createRoom = function(gameType){ //TODO: Move translators to inside the g
     //TODO: Readd numbering by committing to the naming strategy and having each game have a unique (not universally, just that two can't exist at once) number instead of a game name (and calculate the game name from the game type and number)
     var gameRegistryEntry = this.gameRegistry.get(gameType);
     var game = new (gameRegistryEntry.game)();
-    var room = new Room(roomUUID, gameType, game, [], this); //uuid, name, game, players, server
-    room.translators = {};
-    Object.getOwnPropertyNames(gameRegistryEntry.translators).forEach(propName=>{ //TODO: Ok yeah there MUST be an easier way to do this
-        room.translators[propName] = new gameRegistryEntry.translators[propName](room);
-    });
+    var translators = gameRegistryEntry.translators;
+    var room = new Room(roomUUID, gameType, game, translators, [], this); //uuid, name, game, translators, players, server
     this.rooms.set(roomUUID, room);
 };
 
