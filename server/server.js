@@ -13,6 +13,8 @@ const Room = require('../common/Room.js');
 const ws = require('ws');
 server.wss = new ws.WebSocketServer({ port: server.config.websocketPort });
 const WS_Client = require('../clients/WS_Client/WS_Client.js').WS_Client;
+server.new_wss = new ws.WebSocketServer({ port: server.config.websocketPort+1 });
+const New_WS_Client = require('../clients/New_WS_Client/New_WS_Client.js').New_WS_Client;
 
 //Express
 const express = require('express');
@@ -20,6 +22,7 @@ var bodyParser = require('body-parser');
 const fs = require('fs');
 const path = require('path/posix');
 server.app = express();
+server.new_app = express();
 
 //Telnet
 const telnet = require('net');
@@ -87,10 +90,30 @@ server.app.get('/', (req, res, next) => {
             console.log(`Sent homepage`);
         }
     });
-})
+});
+server.new_app.get('/', (req, res, next) => {
+    var options = {
+        root: path.join(__dirname, '../clients/New_WS_Client/public'),
+        dotfiles: 'deny',
+        headers: {
+            'x-timestamp': Date.now(),
+            'x-sent': true
+        }
+    };
+    res.sendFile('/index.html', options, function (err) {
+        if (err) {
+            console.error('Error: Failed to send homepage');
+            next(err);
+        } else {
+            console.log(`Sent homepage`);
+        }
+    });
+});
 
 server.app.use('/', express.static('clients/WS_Client/public'));
+server.new_app.use('/', express.static('clients/New_WS_Client/public'));
 server.app.use('/games', express.static('games')); //TODO: Pass images directly as blobs? No, keep game folder public, it can have rules PDFs and other useful things in it as well!
+server.new_app.use('/games', express.static('games'));
 
 //REST API
 server.app.use(bodyParser.urlencoded({ extended: true }));
@@ -108,9 +131,27 @@ server.app.get('/api/announcements', (req, res) => {
     res.send(server.config.announcements); //That Was Easy(TM)
 });
 
+server.new_app.use(bodyParser.urlencoded({ extended: true }));
+server.new_app.get('/api/games', (req, res) => {
+    res.send(Array.from(server.rooms.values()).map(room=>{ //Send in array format to make parsing easier on the frontend, since Maps can't be sent through JSON (afaik)
+        var roomInfo = { //Don't send the entire server object over as part of each game
+            uuid: room.uuid, //each "game" is a [uuid,Game] pair
+            name: room.name,
+            players: room.players.map(client=>client.uuid) //TODO: clients or users? //TODO: client.user.name?
+        }
+        return roomInfo;
+    }));
+});
+server.new_app.get('/api/announcements', (req, res) => {
+    res.send(server.config.announcements); //That Was Easy(TM)
+});
+
 //Start Express Server
 server.app.listen(server.config.expressPort, () => {
-    console.log(`Web server listening at http://localhost:${server.config.expressPort}`);
+    console.log(`Old web server listening at http://localhost:${server.config.expressPort}`);
+});
+server.new_app.listen(server.config.expressPort+1, () => {
+    console.log(`New web server listening at http://localhost:${server.config.expressPort+1}`);
 });
 
 
@@ -120,14 +161,25 @@ server.wss.on('connection', function connection(ws, req) {
     var clientUUID = generateUUID();
     var client = new WS_Client(clientUUID, randName(clientUUID), ws, server);
     server.clients.set(client.uuid, client);
-    console.log("New Websocket connection with UUID %s", client.uuid);
+    console.log("Old Websocket connection with UUID %s", client.uuid);
 });
 
 server.wss.on('close', function close() {
-    console.log('Websocket server closed');
+    console.log('Old Websocket server closed');
 });
 
 //TODO: server.wss.listen?
+
+server.new_wss.on('connection', function connection(ws, req) {
+    var clientUUID = generateUUID();
+    var client = new New_WS_Client(clientUUID, randName(clientUUID), ws, server);
+    server.clients.set(client.uuid, client);
+    console.log("New Websocket connection with UUID %s", client.uuid);
+});
+
+server.new_wss.on('close', function close() {
+    console.log('New Websocket server closed');
+});
 
 
 
@@ -166,6 +218,7 @@ server.telnet.listen(server.config.telnetPort, () => {
 //Server messages from clients
 server.receive = function (client, msg) {
     switch (client.type) {
+        case 'New_WS_Client':
         case 'WS_Client':
             console.log('Client %s sent message: %o', client.uuid, msg);
             switch (msg.type) {

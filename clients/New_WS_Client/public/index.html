@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<head>
+    <title>Elemental Chess</title>
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+    <div id="title-bar">
+        <div id="logo-container">
+            <img id="logo" src="logo.png"/> <!--From https://www.desertbloomastrology.com/archivesblog/2018/11/10/the-elements-->
+        </div>
+        <h1>Elemental Chess</h1>
+        <span>By Gabriel Buonomano</span>
+    </div>
+    <div id="main-container">
+        <div id="games-list" class="section">
+            <h3 class="section-title">Games List</h3>
+            <div id="games-list-items" class="section-items">
+                <div class="games-list-item" id="games-list-item-template" style="visibility:hidden;">
+                    <span class="small-logo-container"><img class="small-logo" src="logo.png"/></span> | <span class="game-name">Game #1</span> | <span>Players: <span class="player-list">None</span></span> | <span class="align-end"><button type="button">Join</button></span>
+                </div>
+            </div>
+        </div>
+        <div id="updates" class="section">
+            <h3 class="section-title">Updates</h3>
+            <div id="updates-items" class="section-items">
+                <div class="updates-item" id="updates-item-template" style="visibility:hidden;">
+                    <h4 class="update-title">Title</h4>
+                    <div class="update-body">
+                        Body
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="index.js"></script>
+</body>
