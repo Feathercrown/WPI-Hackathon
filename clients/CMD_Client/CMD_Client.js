@@ -6,7 +6,7 @@ class CMD_Client { //TODO: Extend a general client class
           name: name, //Previously `Guest (${this.uuid})`; now the server determines a random animal name
           guest: true
         };
-        this.socket = socket; //TODO: Convert ws to socket in WS_Client
+        this.socket = socket; //TODO: Convert ws to socket in WS_Client and New_WS_Client
         this.server = server;
         this.room = null;
 
