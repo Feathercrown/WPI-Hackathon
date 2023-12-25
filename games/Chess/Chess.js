@@ -498,7 +498,7 @@ class Square {
 
 var translators = {};
 translators.WS_Client = require('./translators/WS_Translator.js');
-translators.New_WS_Client = require('./translators/WS_Translator.js');
+translators.New_WS_Client = require('./translators/New_WS_Translator.js');
 translators.CMD_Client = require('./translators/CMD_Translator.js');
 
 module.exports = { game: Chess, translators };
