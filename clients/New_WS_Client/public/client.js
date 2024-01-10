@@ -1,4 +1,5 @@
 window.addEventListener('load', (event) => {
+    //Handle canvas and context2D
     var canvas = document.getElementById("main-canvas");
     canvas.width = canvas.getBoundingClientRect().width; //Set internal canvas width/height to match external width/height
     canvas.height = canvas.getBoundingClientRect().height; //EDIT: No longer do this; ensure square external canvas dimensions
@@ -7,15 +8,29 @@ window.addEventListener('load', (event) => {
         canvas.height = canvas.getBoundingClientRect().height; //EDIT: No longer do this; ensure square external canvas dimensions
     });
     var ctx = canvas.getContext("2d");
-    ctx.fillRect(5,5,10,10);
-    var sprites = [];
-    var decisions = [];
-    var selectedPiece;
-    var tileWidth = 60;
+
+    //Set up essential variables
+    var sprites = [
+        {
+            image: (()=>{let x=new Image(); x.src='https://www.megachess.com/cdn/shop/products/2017_Mega_Chess_Need_to_Clip-8_d837bf90-4b5c-4fe7-828a-f73ea81d6d5a.png'; return x;})(),
+            x: 250,
+            y: 250,
+            z: 0,
+            width: 100,
+            height: 100,
+        }
+    ];
+    var selectedSprite = null; //TODO: Track which sprites are selected with an array
+    var camera = {
+        x: canvas.width / 2,
+        y: canvas.height / 2,
+        zoom: 1
+    };
     var resources = { //TODO: Download resources on join
         rules: './games/Chess/BasicChessRules.pdf'
     };
 
+    //Establish connection with the server
     var socket = new WebSocket('ws://localhost:8081');
     socket.onopen = function(){
         //Socket opened
@@ -32,7 +47,7 @@ window.addEventListener('load', (event) => {
             console.log(msg);
             var msgData = JSON.parse(msg.data); //TODO: Do anything else with the message object besides strip it down to its data?
             receive(msgData, this);
-        } catch(e){
+        } catch(e) {
             console.error(e);
             console.warn("Server %s sent message in string format");
             //TODO: Convert to usable JSON object and continue
@@ -40,6 +55,7 @@ window.addEventListener('load', (event) => {
     };
     socket.onclose = function(){
         //Socket closed
+        console.log("Connection closed");
     };
 
     //TODO: Custom socket send and receive functions to handle JSON serialization/parsing, error handling, displaying stuff, etc.
@@ -101,7 +117,7 @@ window.addEventListener('load', (event) => {
 
     //Handle rule-viewing requests
     document.getElementById('view-rules-button').onclick = function showRules(){
-        if(resources.rules){
+        if(resources?.rules){
             window.open(resources.rules, '_blank');
         } else {
             alert("Sorry, no rules document specified.");
@@ -129,11 +145,10 @@ window.addEventListener('load', (event) => {
     window.addEventListener('pagehide', leaveGame);
 
     //Draw canvas
-    console.log("Drawing interval set");
+    console.log("Canvas rendering interval set");
     var drawInterval = setInterval(()=>{
-        //console.log("Drawing interval run");
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        //console.log(decisions);
+        /*
         if(selectedPiece){
             var matches = decisions.filter(decision=>{
                 return decision.piece[0] == selectedPiece.x && decision.piece[1] == selectedPiece.y;
@@ -150,31 +165,65 @@ window.addEventListener('load', (event) => {
             });
             //console.log(selectedPiece);
         }
-        sprites.forEach(sprite=>{
-            ctx.drawImage(sprite.image, sprite.x, sprite.y, sprite.width, sprite.height);
+        */
+
+        //TODO: Respect Z-index
+        sprites.forEach(sprite => {
+            if(sprite === selectedSprite){
+                ctx.shadowColor = "blue";
+                ctx.shadowBlur = 10;
+            }
+            ctx.drawImage(
+                sprite.image, //image
+                (sprite.x - camera.x) * camera.zoom + canvas.width/2, //x
+                (sprite.y - camera.y) * camera.zoom + canvas.height/2, //y
+                sprite.width * camera.zoom, //width
+                sprite.height * camera.zoom //height
+            );
+            ctx.shadowBlur = 0;
         });
     }, 200); //5 FPS Baby! WOOO thrilling gameplay
 
     //Handle user input
     canvas.addEventListener('click', (evt)=>{
-        var rect = canvas.getBoundingClientRect();
-        var pos = {
-            x: Math.floor((evt.clientX - rect.left)/tileWidth),
-            y: 7 - Math.floor((evt.clientY - rect.top)/tileWidth)
-        };
-        if(selectedPiece){
-            var matches = decisions.filter(decision=>{
-                return decision.piece[0] == selectedPiece.x && decision.piece[1] == selectedPiece.y
-                && decision.args[0][0] == pos.x && decision.args[0][1] == pos.y;
-            });
-            console.log(matches);
-            if(matches.length == 1){
-                send({
-                    type: "gameDecision",
-                    decision: matches[0]
-                });
-            }
+        let pos = getMousePos(evt);
+        console.log(pos);
+        let overlappingSprites = sprites.filter(sprite =>
+            sprite.x < pos.x &&
+            sprite.y < pos.y &&
+            (sprite.x + sprite.width) > pos.x &&
+            (sprite.y + sprite.height) > pos.y
+        );
+        if(overlappingSprites.length > 0){
+            //TODO: If sprite in overlapping stack selected, select next-behind sprite (wrap to top sprite), to allow cycling between sprites?
+            //If sprites were perfectly overlapped, how would you know which one is selected?
+            selectedSprite = overlappingSprites.sort((a,b) => (b.z - a.z))[0];
+            console.log(selectedSprite);
+        } else {
+            selectedSprite = null;
         }
-        selectedPiece = pos;
+        /*
+        send({
+            type: "gameDecision",
+            decision: matches[0]
+        });
+        */
     });
+
+
+
+
+
+    //////////////////////
+    // Helper Functions //
+    //////////////////////
+
+    function getMousePos(event){
+        let rect = canvas.getBoundingClientRect();
+        let pos = {
+            x: ((event.clientX - rect.left) - canvas.width/2) / camera.zoom + camera.x,
+            y: ((event.clientY - rect.top) - canvas.height/2) / camera.zoom + camera.y
+        };
+        return pos;
+    }
 });
