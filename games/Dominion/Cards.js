@@ -63,7 +63,7 @@ const prim = {
         return new Action('choice', [prompt, {text:'Yes', action:yes}, {text:'No', action:no}]);
     },
     allOtherPlayers: ()=>{
-        
+
     }
 };
 
@@ -228,13 +228,16 @@ var cardsGlobal = {
         cost: 3,
         types: ['Action'],
         play: ()=>{
-            return [];
-        }, //TODO: money(2), discard('exactly', 1, ()=>(true), 'deck'), ... ?
-        'TODO': [
-            //Earn 2 money
-            //Discard 1 card from deck, save to "discarded"
-            //If "discarded" was an action, choice: "play", "ignore"
-        ]
+            let discard = prim.discard('exactly', 1, ()=>(true), 'deck');
+            return [
+                prim.money(2),
+                discard,
+                //TODO
+                prim.if({action:discard, custom:(action)=>(action.cards[0].types.includes('Action'))}, [
+                    prim.confirm('Play card?', prim.play({action:discard, custom:(action)=>(action.cards[0])}), [])
+                ], [])
+            ];
+        }
     },
     'Village': {
         name: 'Village',
@@ -265,19 +268,17 @@ var cardsGlobal = {
         types: ['Action', 'Attack'],
         play: ()=>{ //TODO
             return [
-
+                prim.gain('exactly', 1, (card)=>(card.name === 'Silver')),
+                //TODO:
+                //Each other player:
+                //  If hand has a victory card:
+                //    Select card from hand (restriction: types contains "victory"), save to "selected"
+                //    Reveal "selected"
+                //    Put "selected" on deck
+                //  Else:
+                //    Reveal hand
             ];
-        },
-        'TODO':[
-            //Gain a silver to your deck
-            //Each other player:
-            //  If hand has a victory card:
-            //    Select card from hand (restriction: types contains "victory"), save to "selected"
-            //    Reveal "selected"
-            //    Put "selected" on deck
-            //  Else:
-            //    Reveal hand
-        ]
+        }
     },
     'Gardens': {
         name: 'Gardens',
@@ -293,15 +294,13 @@ var cardsGlobal = {
         types: ['Action', 'Attack'],
         play: ()=>{ //TODO
             return [
-
+                prim.money(2),
+                //TODO:
+                //Each other player:
+                //  Chooses all but three cards from their hand
+                //  Discards those cards
             ];
-        },
-        'TODO':[
-            //Earn 2 money
-            //Each other player:
-            //  Chooses all but three cards from their hand
-            //  Discards those cards
-        ]
+        }
     },
     'Moneylender': {
         name: 'Moneylender',
@@ -312,7 +311,7 @@ var cardsGlobal = {
             let trash = prim.trashSelection({action:select, property:'selection'});
             let earn = prim.if({action:trash, property:'successful'}, prim.money(3), []);
             return [
-                prim.confirm('', [select, trash, earn]) //TODO: Text
+                prim.confirm('Trash a copper?', [select, trash, earn])
             ];
         }
     },
