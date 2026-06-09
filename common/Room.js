@@ -1,4 +1,3 @@
-//TODO: Move Room.js out of /Common, or /Common out of /games?
 class Room {
     constructor(uuid, name, game, translators, players, server){ //TODO: Take config and instantiate game in here?
         this.uuid = uuid;
